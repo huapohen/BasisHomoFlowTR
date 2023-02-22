@@ -39,5 +39,5 @@ dataset/data/
 .vscode/
 experiments/*
 !experiments/config/
-!experiments/params.json/
+!experiments/params.json
 git*

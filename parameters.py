@@ -6,8 +6,8 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 7
-    cfg.gpu_used = '1'
+    cfg.exp_id = 10
+    cfg.gpu_used = '2'
     cfg.num_workers = 8
     # cfg.train_batch_size = 1
     cfg.train_data_ratio = 0.1

@@ -56,7 +56,7 @@ def launch_training_job(
 
         params.dict['model_dir'] = os.path.join(exp_root_dir, exp_name, job_name)
         model_dir = params.dict['model_dir']
-        
+
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
 
@@ -76,7 +76,7 @@ def launch_training_job(
             f'--exp_id {exp_id} '
             f'--tb_path {tb_path}'
         )
-        
+
         exp_cmds.append(cmd)
 
     if_serial = num_jobs > num_device
@@ -115,12 +115,11 @@ def experiment():
     params = utils.Params(json_path)
 
     exp_name = 'baseshomo'
-    exp_start_id = 7
+    exp_start_id = 8
     session_name = str(exp_start_id)  # tmux session name, need pre-create
     param_pool_dict = collections.OrderedDict()
     device_used = collections.OrderedDict()
-    device_used = ['3', '3']
-    # device_used = ['1']
+    device_used = ['5', '5']
     param_pool_dict["train_batch_size"] = [8, 16]
     param_pool_dict["eval_batch_size"] = [8]
     param_pool_dict["num_workers"] = [8]
