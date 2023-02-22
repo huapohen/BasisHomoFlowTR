@@ -38,6 +38,6 @@ dataset/AVM/
 dataset/data/
 .vscode/
 experiments/*
-!experiments/config/
+# !experiments/config/
 !experiments/params.json
 git*
