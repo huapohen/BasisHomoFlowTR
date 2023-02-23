@@ -48,5 +48,23 @@
     "is_test_last_10_percent": false,
     "is_test_assigned_img": false,
     "is_exp_rm_protect": false,
-    "is_continue_train": false
+    "is_continue_train": false,
+    "wh_bev_fblr": {
+        "front": [
+            1078,
+            336
+        ],
+        "back": [
+            1078,
+            336
+        ],
+        "left": [
+            1172,
+            439
+        ],
+        "right": [
+            1172,
+            439
+        ]
+    }
 }

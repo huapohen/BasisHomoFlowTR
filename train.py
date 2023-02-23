@@ -147,11 +147,11 @@ if __name__ == '__main__':
         cfg = get_config(args, mode='train')
         dic_params = json.loads(json.dumps(cfg))
         obj_params = dictToObj(dic_params)
-        default_json_path = os.path.join("experiments", "params.json")
+        default_json_path = os.path.join(cfg.exp_root_dir, "params.json")
         params = utils.Params(default_json_path)
         params.update(obj_params)
         file_name = f"{params.exp_name}_exp_{params.exp_id}.json"
-        params.extra_config_json_dir = os.path.join("experiments", 'config')
+        params.extra_config_json_dir = os.path.join(cfg.exp_root_dir, 'config')
         params.exp_json_path1 = os.path.join(params.model_dir, "params.json")
         params.exp_json_path2 = os.path.join(params.extra_config_json_dir, file_name)
         # resume

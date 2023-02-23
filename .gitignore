@@ -2,10 +2,10 @@ __pycache__
 /work/
 *.pyc
 *.pkl
-*.jpg
+# *.jpg
 *.jpeg
-*.png
-*.gif
+# *.png
+# *.gif
 *.log
 train_log
 *.swp
@@ -34,7 +34,6 @@ data/
 .env/
 ours_v3_ICCV_final
 
-dataset/AVM/
 dataset/data/
 .vscode/
 experiments/*
