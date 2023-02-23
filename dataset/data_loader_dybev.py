@@ -3,6 +3,7 @@ import os
 import pickle
 import random
 import cv2
+import ipdb
 
 import numpy as np
 import torch
@@ -18,30 +19,39 @@ class HomoTrainData(Dataset):
 
         self.mean_I = np.array([118.93, 113.97, 102.60]).reshape(1, 1, 3)
         self.std_I = np.array([69.85, 68.81, 72.45]).reshape(1, 1, 3)
-        self.crop_size = params.crop_size
+        self.crop_size = params.crop_size_dybev
 
         self.rho = params.rho
         self.normalize = True
         self.horizontal_flip_aug = True
-
-        self.list_path = params.train_data_dir + '/train_list.txt'
-        self.data_all = open(self.list_path, 'r').readlines()
+        txt_list = []
+        suffix = '_pair_names_list.txt'
+        if len(params.camera_list) == 4:
+            txt_list = ['all_fblr' + suffix]
+        else:
+            for cam in params.camera_list:
+                txt_list.append(cam + suffix)
+        self.data_dir = params.train_data_dir + '/train/' + params.data_source_type
+        self.data_all = []
+        for txt_name in txt_list:
+            path = self.data_dir + '/pair/' + txt_name
+            self.data_all += open(path, 'r').readlines()
         total_sample = len(self.data_all)
+
+        self.seed = 0
+        random.seed(self.seed)
+        random.shuffle(self.data_all)
+
         num = int(total_sample * params.train_data_ratio)
         self.data_infor = self.data_all[:num]
         if params.is_test_last_10_percent:
             num = int(total_sample * 0.1)
             self.data_infor = self.data_all[(total_sample - num) :]
-        self.data_dir = params.train_data_dir + '/Train/'
 
-        self.seed = 0
-        random.seed(self.seed)
-        random.shuffle(self.data_infor)
-        
         self.sample_number = {}
-        self.sample_number['baseshomo'] = {
-                'ratio': params.train_data_ratio,
-                "samples": len(self.data_infor),
+        self.sample_number['v6'] = {
+            'ratio': params.train_data_ratio,
+            "samples": len(self.data_infor),
         }
         self.sample_number["total_samples"] = len(self.data_infor)
 
@@ -57,9 +67,9 @@ class HomoTrainData(Dataset):
         img1 = cv2.imread(f'{self.data_dir}/{img_names[0]}')
         img2 = cv2.imread(f'{self.data_dir}/{img_names[1][:-1]}')
         if self.params.is_test_assigned_img:
-            img1 = cv2.imread('dataset/AVM/10467_A.jpg')
-            img2 = cv2.imread('dataset/AVM/10467_B.jpg')
-
+            img1 = cv2.imread('dataset/test/10467_A.jpg')
+            img2 = cv2.imread('dataset/test/10467_B.jpg')
+        # print(img_names)
         img1_full = torch.tensor(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
         img2_full = torch.tensor(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))
         img1_full = img1_full.unsqueeze(0).float()
@@ -150,11 +160,11 @@ class HomoTestData(Dataset):
         self.files_path = os.path.join(params.test_data_dir, "Test")
 
         self.data_infor = open(self.npy_list, 'r').readlines()
-        
+
         self.sample_number = {}
         self.sample_number['baseshomo'] = {
-                'ratio': params.train_data_ratio,
-                "samples": len(self.data_infor),
+            'ratio': params.train_data_ratio,
+            "samples": len(self.data_infor),
         }
         self.sample_number["total_samples"] = len(self.data_infor)
 
@@ -305,7 +315,7 @@ def fetch_dataloader(params):
     # add train data loader
     if params.dataset_type in ['basic', 'train']:
         train_ds = HomoTrainData(params)
-        train_dl = DataLoader(
+        dl = DataLoader(
             train_ds,
             batch_size=params.train_batch_size,
             shuffle=True,

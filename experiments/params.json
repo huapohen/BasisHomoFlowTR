@@ -68,5 +68,12 @@
             1172,
             439
         ]
-    }
+    },
+    "data_source_type": "generate",
+    "camera_list": ["front", "back", "left", "right"],
+    "crop_size_dybev": [
+        256,
+        256
+    ],
+    "is_dybev": false
 }

@@ -14,6 +14,7 @@ from tqdm import tqdm
 # from apex import amp
 
 import dataset.data_loader as data_loader
+import dataset.data_loader_dybev as data_loader_dybev
 import model.net as net
 
 from common import utils
@@ -206,20 +207,33 @@ if __name__ == '__main__':
     logger.info("Loading the train datasets from {}".format(params.train_data_dir))
 
     # fetch dataloaders
-    dataloaders = data_loader.fetch_dataloader(params)
+    dl = data_loader_dybev if params.is_dybev else data_loader
+    dataloaders = dl.fetch_dataloader(params)
 
-    # Define the model and optimizer
+    # model 
+    model = net.fetch_net(params)
+    
+    # gpu
     if params.cuda:
-        model = net.fetch_net(params).cuda()
-        optimizer = optim.AdamW(model.parameters(), lr=params.learning_rate)
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
+        model = model.cuda()
         gpu_num = len(params.gpu_used.split(","))
         device_ids = range(gpu_num)
         model = torch.nn.DataParallel(model, device_ids=device_ids)
-    else:
-        model = net.fetch_net(params)
-        optimizer = optim.AdamW(model.parameters(), lr=params.learning_rate)
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
+    
+    # optimizer
+    optimizer = optim.AdamW(model.parameters(), lr=params.learning_rate)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
+    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.995)
+
+    # Dataset information
+    for set_mode, set_dl in dataloaders.items():
+        sample_info = set_dl.sample_number
+        ds_stats = ""
+        for k, v in sample_info.items():
+            if k != 'total_samples':
+                ds_stats += f" {k}  r={v['ratio']} n={v['samples']}\t"
+        logger.info(f"{set_mode} dataset: {ds_stats}")
+        logger.info(f"total samples: {sample_info['total_samples']}")
 
     # initial status for checkpoint manager
     manager = Manager(
