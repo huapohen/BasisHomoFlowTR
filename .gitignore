@@ -35,6 +35,7 @@ data/
 ours_v3_ICCV_final
 
 dataset/data/
+dataset/test/
 .vscode/
 experiments/*
 # !experiments/config/
