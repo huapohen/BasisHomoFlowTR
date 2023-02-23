@@ -112,8 +112,8 @@ def unit_test_overlap():
     lf_front = front_ori[216 - 200 : 316 + 20, 309 - 200 : 409 + 20]
     lf_left = cv2.rotate(lf_left, cv2.ROTATE_90_COUNTERCLOCKWISE)
     txt_info = (cv2.FONT_HERSHEY_SIMPLEX, 1, (192, 192, 192), 2)
-    cv2.putText(lf_left, 'left', (250, 200), *txt_info)
-    cv2.putText(lf_front, 'front', (250, 150), *txt_info)
+    cv2.putText(lf_left, 'left', (200, 200), *txt_info)
+    cv2.putText(lf_front, 'front', (200, 150), *txt_info)
     cv2.imwrite(f'{sv_dir}/lf_f.jpg', lf_front)
     cv2.imwrite(f'{sv_dir}/lf_l.jpg', lf_left)
     create_gif([lf_left, lf_front], f'{sv_dir}/lf.gif')
