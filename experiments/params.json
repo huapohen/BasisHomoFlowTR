@@ -37,6 +37,7 @@
         320,
         576
     ],
+    "seed": 230,
     "rho": 16,
     "num_basis": 8,
     "weight_fil": 1,
@@ -44,6 +45,7 @@
     "fea_dims": 1,
     "is_add_lrr_module": false,
     "is_vis_and_exit": false,
+    "is_save_gif": false,
     "loss_func_type": "photo",
     "is_test_last_10_percent": false,
     "is_test_assigned_img": false,

@@ -21,9 +21,10 @@ def train_config(cfg):
 def test_config(cfg, args=None):
 
     cfg.exp_id = 1
-    cfg.gpu_used = '1'
+    cfg.gpu_used = '7'
     cfg.eval_batch_size = 8
     # cfg.is_vis_and_exit = True
+    cfg.is_save_gif = True
     cfg.is_exp_rm_protect = False
     cfg.dataset_type = "test"
     # cfg.eval_visualize_save = False

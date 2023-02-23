@@ -117,7 +117,7 @@ def evaluate(model, manager):
                     elif video_name[j] in LF:
                         MSE_LF.append(err_avg[j])
 
-                    if k % params.save_iteration == 0:
+                    if k % params.save_iteration == 0 and params.is_save_gif:
                         img2_full = imgs_full[j, 3:, ...].permute(1, 2, 0)
                         img2_full = img2_full.cpu().numpy().astype(np.uint8)
                         img2_full = cv2.cvtColor(img2_full, cv2.COLOR_BGR2RGB)

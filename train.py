@@ -5,6 +5,7 @@ import ipdb
 import shutil
 import datetime
 import argparse
+import numpy as np
 
 import torch
 import torch.optim as optim
@@ -190,9 +191,10 @@ if __name__ == '__main__':
     params.cuda = torch.cuda.is_available()
 
     # Set the random seed for reproducible experiments
-    torch.manual_seed(230)
+    torch.manual_seed(params.seed)
+    np.random.seed(params.seed)
     if params.cuda:
-        torch.cuda.manual_seed(230)
+        torch.cuda.manual_seed(params.seed)
 
     # Set the logger
     logger = utils.set_logger(os.path.join(params.model_dir, 'train.log'))
