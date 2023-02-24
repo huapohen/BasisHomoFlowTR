@@ -115,15 +115,34 @@ def experiment():
     params = utils.Params(json_path)
 
     exp_name = 'baseshomo'
-    exp_start_id = 8
+    exp_start_id = 9
     session_name = str(exp_start_id)  # tmux session name, need pre-create
     param_pool_dict = collections.OrderedDict()
     device_used = collections.OrderedDict()
-    device_used = ['5', '5']
-    param_pool_dict["train_batch_size"] = [8, 16]
+    device_used = ['4', '5', '6', '7']
+    param_pool_dict["train_batch_size"] = [8]
     param_pool_dict["eval_batch_size"] = [8]
     param_pool_dict["num_workers"] = [8]
-    # param_pool_dict['train_data_ratio'] = [0.1]
+    param_pool_dict['train_data_ratio'] = [0.1]
+    param_pool_dict['is_dybev'] = [True]
+    param_pool_dict['train_data_dir'] = ['/home/data/lwb/data/dybev/v6']
+    param_pool_dict['camera_list'] = [
+        ['front'],
+        ['back'],
+        ['left'],
+        ['right'],
+    ]
+    param_pool_dict['exp_description'] = [
+        '''
+        exp_9-12:
+        param_pool_dict['camera_list'] = [
+            ['front'],
+            ['back'],
+            ['left'],
+            ['right'],
+        ] 
+        '''
+    ]
 
     # '0', '1', '2', '3', '4', '5', '6', '7'
     # device_used = ['6']

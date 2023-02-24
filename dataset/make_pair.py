@@ -20,7 +20,7 @@ class MakePair:
         self.sv_txt_name = 'all_fblr_pair_names_list.txt'
         self.sv_txt_name_suff = 'pair_names_list.txt'
         np.random.seed(1)
-        self.pert_number = 15 if source == 'generate' else 1
+        self.pert_number = 10 if source == 'generate' else 1
         self.cam_align = {
             'front': ['left', 'right'],
             'back': ['left', 'right'],

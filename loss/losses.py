@@ -1,7 +1,9 @@
 import os
 import sys
-import shutil
+import cv2
 import torch
+import shutil
+import imageio
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
@@ -94,6 +96,18 @@ def vis_save_image_and_exit(output, input):
     save_image(input['img2_full_rgb'] / 255.0, f'{svd}/img2_full_rgb.jpg')
     save_image(output['img1_warp_rgb'] / 255.0, f'{svd}/img1_warp_rgb.jpg')
     save_image(output['img2_warp_rgb'] / 255.0, f'{svd}/img2_warp_rgb.jpg')
+    i1 = cv2.imread(f'{svd}/img1_full_rgb.jpg')
+    i2 = cv2.imread(f'{svd}/img2_warp_rgb.jpg')
+    txt_info = (cv2.FONT_HERSHEY_SIMPLEX, 1, (192, 192, 192), 2)
+    cv2.putText(i1, 'img1_ori', (200, 150), *txt_info)
+    cv2.putText(i2, 'img2_warp', (200, 200), *txt_info)
+    imageio.mimsave(f'{svd}/img1.gif', [i1, i2], 'GIF', duration=0.5)
+    i1 = cv2.imread(f'{svd}/img2_full_rgb.jpg')
+    i2 = cv2.imread(f'{svd}/img1_warp_rgb.jpg')
+    txt_info = (cv2.FONT_HERSHEY_SIMPLEX, 1, (192, 192, 192), 2)
+    cv2.putText(i1, 'img2_ori', (200, 150), *txt_info)
+    cv2.putText(i2, 'img1_warp', (200, 200), *txt_info)
+    imageio.mimsave(f'{svd}/img2.gif', [i1, i2], 'GIF', duration=0.5)
 
     sys.exit()
 

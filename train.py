@@ -210,16 +210,16 @@ if __name__ == '__main__':
     dl = data_loader_dybev if params.is_dybev else data_loader
     dataloaders = dl.fetch_dataloader(params)
 
-    # model 
+    # model
     model = net.fetch_net(params)
-    
+
     # gpu
     if params.cuda:
         model = model.cuda()
         gpu_num = len(params.gpu_used.split(","))
         device_ids = range(gpu_num)
         model = torch.nn.DataParallel(model, device_ids=device_ids)
-    
+
     # optimizer
     optimizer = optim.AdamW(model.parameters(), lr=params.learning_rate)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)

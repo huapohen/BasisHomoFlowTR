@@ -37,11 +37,11 @@ class HomoTrainData(Dataset):
         self.seed = 0
         random.seed(self.seed)
         random.shuffle(self.data_infor)
-        
+
         self.sample_number = {}
         self.sample_number['baseshomo'] = {
-                'ratio': params.train_data_ratio,
-                "samples": len(self.data_infor),
+            'ratio': params.train_data_ratio,
+            "samples": len(self.data_infor),
         }
         self.sample_number["total_samples"] = len(self.data_infor)
 
@@ -150,11 +150,11 @@ class HomoTestData(Dataset):
         self.files_path = os.path.join(params.test_data_dir, "Test")
 
         self.data_infor = open(self.npy_list, 'r').readlines()
-        
+
         self.sample_number = {}
         self.sample_number['baseshomo'] = {
-                'ratio': params.train_data_ratio,
-                "samples": len(self.data_infor),
+            'ratio': params.train_data_ratio,
+            "samples": len(self.data_infor),
         }
         self.sample_number["total_samples"] = len(self.data_infor)
 
@@ -305,7 +305,7 @@ def fetch_dataloader(params):
     # add train data loader
     if params.dataset_type in ['basic', 'train']:
         train_ds = HomoTrainData(params)
-        train_dl = DataLoader(
+        dl = DataLoader(
             train_ds,
             batch_size=params.train_batch_size,
             shuffle=True,

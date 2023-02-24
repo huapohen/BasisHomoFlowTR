@@ -7,15 +7,14 @@ from yacs.config import CfgNode as CN
 
 def train_config(cfg):
     cfg.exp_id = 8
-    cfg.gpu_used = '7'
-    cfg.num_workers = 8
-    # cfg.train_batch_size = 1
+    cfg.gpu_used = '1_3'
     cfg.train_data_ratio = 0.1
-    cfg.is_vis_and_exit = True
+    # cfg.is_vis_and_exit = True
     cfg.is_dybev = True
-    cfg.camera_list = ['front']
+    # cfg.camera_list = ['front']
+    cfg.camera_list = ['front', 'back', 'left', 'right']
     cfg.train_data_dir = '/home/data/lwb/data/dybev/v6'
-    cfg.exp_description = 'dybev overlap, front camera'
+    cfg.exp_description = ''' ['front', 'back', 'left', 'right'] '''
     cfg = continue_train(cfg)
     # cfg.gpu_used = '0_1_2_3_4_5_6_7' # use 8 GPUs
     return cfg
@@ -72,6 +71,8 @@ def common_config(cfg):
     ):
         print("Existing experiment, exit.")
         sys.exit()
+    if 'is_debug_dataloader' in vars(cfg) and cfg.is_debug_dataloader:
+        cfg.num_workers = 0
     return cfg
 
 

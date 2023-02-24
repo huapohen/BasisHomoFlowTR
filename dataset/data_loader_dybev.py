@@ -60,8 +60,9 @@ class HomoTrainData(Dataset):
         return len(self.data_infor)
 
     def __getitem__(self, idx):
-
-        # img loading
+        '''
+        debug dataloader: set num_workers=0
+        '''
         img_names = self.data_infor[idx]
         img_names = img_names.split(' ')
         img1 = cv2.imread(f'{self.data_dir}/{img_names[0]}')
@@ -69,7 +70,7 @@ class HomoTrainData(Dataset):
         if self.params.is_test_assigned_img:
             img1 = cv2.imread('dataset/test/10467_A.jpg')
             img2 = cv2.imread('dataset/test/10467_B.jpg')
-        # print(img_names)
+
         img1_full = torch.tensor(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
         img2_full = torch.tensor(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))
         img1_full = img1_full.unsqueeze(0).float()
