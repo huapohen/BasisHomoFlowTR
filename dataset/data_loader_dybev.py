@@ -61,13 +61,13 @@ class HomoData(Dataset):
                 name_list = data_nature
             else:  # v6, v4
                 name_list = _bev_data(set_name)
-            self.data_sample += name_list
             percentage = int(len(name_list) * data_ratio[1])
             if mode in ['test', 'val']:
                 name_list = sorted(name_list)
             else:  # train
                 random.shuffle(name_list)
             name_list = name_list[:percentage]
+            self.data_sample += name_list
             self.sample_number[set_name] = {
                 'ratio': float(data_ratio[1]),
                 "samples": len(name_list),
@@ -225,26 +225,27 @@ def data_aug(data_dict, aug_params, img1, img2, mode='train'):
         raise ValueError
 
     bgr_list = [img1, img2, img1_patch_bgr, img2_patch_bgr]
-    rgb_list = [cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB) for bgr in bgr_list]
+    # rgb_list = [cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB) for bgr in bgr_list]
     if is_norm:
         bgr_list = [(bgr - mean_I) / std_I for bgr in bgr_list]
     gray_list = bgr_list
     if is_gray:
         gray_list = [np.mean(bgr, axis=2, keepdims=True) for bgr in bgr_list]
-    imgs = (*gray_list, *rgb_list)
+    # imgs = gray_list + rgb_list
+    imgs = gray_list
     imgs = [torch.tensor(img.transpose((2, 0, 1))).float() for img in imgs]
 
     # output
     data_dict["start"] = start
     key_list = [
-        'img1_full_gray',
-        'img2_full_gray',
-        'img1_patch_gray',
-        'img2_patch_gray',
-        'img1_full_rgb',
-        'img2_full_rgb',
-        'img1_patch_rgb',
-        'img2_patch_rgb',
+        'img1_full_gray',  #
+        'img2_full_gray',  #
+        'img1_patch_gray',  #
+        'img2_patch_gray',  #
+        # 'img1_full_rgb',
+        # 'img2_full_rgb',
+        # 'img1_patch_rgb',
+        # 'img2_patch_rgb',
     ]
     for i, key in enumerate(key_list):
         data_dict[key] = imgs[i]

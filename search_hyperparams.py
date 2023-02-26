@@ -119,19 +119,16 @@ def experiment():
     session_name = str(exp_start_id)  # tmux session name, need pre-create
     param_pool_dict = collections.OrderedDict()
     device_used = collections.OrderedDict()
-    device_used = ['4', '5', '6']
+    device_used = ['6_7', '1_3', '4_5']
     param_pool_dict["train_batch_size"] = [16]
     param_pool_dict["eval_batch_size"] = [16]
     param_pool_dict["num_workers"] = [8]
     param_pool_dict['optimizer'] = ['Adam']
     param_pool_dict['is_dybev'] = [True]
     param_pool_dict['loss_func_type'] = ['photo', 'feature', 'all']
-    param_pool_dict['train_data_dir'] = [["nature", 0.1]]
+    param_pool_dict['train_data_ratio'] = [["nature", 0.1]]
     param_pool_dict['exp_description'] = [
-        '''
-        exp_14-16:
-        photo_loss, feature_loss, all_loss
-        '''
+        "exp_14-16: photo_loss, feature_loss, all_loss"
     ]
 
     # '0', '1', '2', '3', '4', '5', '6', '7'

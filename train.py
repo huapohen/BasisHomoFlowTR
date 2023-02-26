@@ -78,6 +78,7 @@ def train(model, manager):
     # set model to training mode
     torch.cuda.empty_cache()
     model.train()
+    params.dataset_mode = 'train'
 
     # Use tqdm for progress bar
     with tqdm(total=len(manager.dataloaders['train'])) as t:

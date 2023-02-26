@@ -57,6 +57,7 @@ def evaluate(model, manager):
     manager.reset_loss_status()
     manager.reset_metric_status(manager.params.eval_type)
     model.eval()
+    params.dataset_mode = 'test'
 
     RE = [
         '0000011',

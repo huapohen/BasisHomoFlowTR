@@ -6,14 +6,15 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 14
-    cfg.gpu_used = '7'
-    cfg.train_data_ratio = [["nature", 0.1]]
+    cfg.exp_id = 13
+    cfg.gpu_used = '0'
+    cfg.train_data_ratio = [["nature", 1]]
     # cfg.is_vis_and_exit = True
+    cfg.train_batch_size = 16
     cfg.is_dybev = True
     # cfg.camera_list = ['front']
     # cfg.camera_list = ['front', 'back', 'left', 'right']
-    cfg.exp_description = ''' fix pipeline, test '''
+    cfg.exp_description = ''' exp_7: photo loss, dataset_ratio=1.0 '''
     cfg = continue_train(cfg)
     # cfg.gpu_used = '0_1_2_3_4_5_6_7' # use 8 GPUs
     return cfg

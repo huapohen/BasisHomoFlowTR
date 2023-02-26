@@ -125,8 +125,8 @@ def compute_eval_results(data_batch, output_batch, manager):
     errs = geometricDistance_v2(data_batch, output_batch, scale_x, scale_y)
 
     eval_results = {}
-    eval_results["img1_full_rgb_warp"] = output_batch['img1_full_rgb_warp']
-    eval_results["img2_full_rgb_warp"] = output_batch['img2_full_rgb_warp']
+    eval_results["img1_full_rgb_warp_f"] = output_batch['img1_full_rgb_warp_f']
+    eval_results["img2_full_rgb_warp_f"] = output_batch['img2_full_rgb_warp_f']
     eval_results["errs"] = errs
 
     return eval_results

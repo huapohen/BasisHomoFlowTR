@@ -138,11 +138,22 @@ class Manager:
         else:
             raise ValueError("Wrong eval type: {}".format(split))
 
+    def print_train_info_v2(self):
+        exp_name = self.params.model_dir.split('/')[-1]
+        exp_id = self.params.exp_id
+        print_str = "{} exp_{} Epoch: {:2d}, lr={:.8f}, ".format(
+            exp_name, exp_id, self.epoch, self.scheduler.get_last_lr()[0]
+        )
+        for k, v in self.loss_status.items():
+            print_str += "%s: %.5f(%.5f) | " % (k, v.val, v.avg)
+
+        return print_str
+
     def print_train_info(self):
         exp_name = self.params.model_dir.split('/')[-1]
         exp_id = self.params.exp_id
         # get_last_lr() for pytorch version>=1.4.0, otherwise get_lr()
-        print_str = "exp_{} Epoch: {:4d}, lr={:.4f} ".format(
+        print_str = "exp_{} Epoch: {:3d}, lr={:.5f} ".format(
             exp_id, self.epoch, self.scheduler.get_last_lr()[0]
         )
         print_str += "total loss: %.4f(%.4f) " % (

@@ -57,8 +57,8 @@ def eval_save_result_kernel(save_file, save_name, manager, k=0):
 
 def eval_save_result(manager, j, k, input, output):
     img_pair = [
-        ('img1_full_rgb', 'img2_full_rgb_warp'),
-        ('img2_full_rgb', 'img1_full_rgb_warp'),
+        ('img1_full_rgb', 'img2_full_rgb_warp_f'),
+        ('img2_full_rgb', 'img1_full_rgb_warp_f'),
     ]
     for pair in img_pair:
         i1 = input[pair[0]][j]
