@@ -6,7 +6,7 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 8
+    cfg.exp_id = 13
     cfg.gpu_used = '1_3'
     cfg.train_data_ratio = 0.1
     # cfg.is_vis_and_exit = True
@@ -22,10 +22,10 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 1
+    cfg.exp_id = 13
     cfg.gpu_used = '7'
     cfg.eval_batch_size = 8
-    # cfg.is_vis_and_exit = True
+    cfg.is_vis_and_exit = True
     cfg.is_save_gif = True
     cfg.is_exp_rm_protect = False
     cfg.dataset_type = "test"

@@ -596,21 +596,27 @@ def upsample2d_flow_as(inputs, target_as, mode="bilinear", if_rate=False):
     return res
 
 
-def warp_image_from_H(homo, img, batch_size, h_patch, w_patch):
-    grid = get_grid(batch_size, h_patch, w_patch)
+def warp_image_from_H(homo, img, batch_size, h_patch, w_patch, start=0):
+    grid = get_grid(batch_size, h_patch, w_patch, start)
     flow, vgrid = get_flow(homo, grid, h_patch, w_patch, 1)
     grids = vgrid + flow
-    # img_warp = transformer(img, grids)
     grids = grids.permute(0, 2, 3, 1)
-    grids[..., 0] = grids[...,  0] / img.shape[3] * 2 - 1
-    grids[..., 1] = grids[...,  1] / img.shape[2] * 2 - 1
+    # grids[..., 0] = grids[..., 0] / (img.shape[3] - 1) * 2 - 1
+    # grids[..., 1] = grids[..., 1] / (img.shape[2] - 1) * 2 - 1
+    grids[..., 0] = grids[..., 0] / (w_patch - 1) * 2 - 1
+    grids[..., 1] = grids[..., 1] / (h_patch - 1) * 2 - 1
+    # grid_sample input range: [-1, 1]
     img_warp = F.grid_sample(img, grids, mode='bilinear')
     return img_warp
 
 
-def warp_image_from_H_start(homo, img, batch_size, h_patch, w_patch, start=0):
+def warp_from_H(homo, img, batch_size, h_patch, w_patch, start=0):
     grid = get_grid(batch_size, h_patch, w_patch, start)
     flow, vgrid = get_flow(homo, grid, h_patch, w_patch, 1)
     grids = vgrid + flow
-    img_warp = transformer(img, grids)
+    # img_warp = transformer(img, grids)
+    grids = grids.permute(0, 2, 3, 1)
+    grids[..., 0] = grids[..., 0] / (w_patch - 1) * 2 - 1
+    grids[..., 1] = grids[..., 1] / (h_patch - 1) * 2 - 1
+    img_warp = F.grid_sample(img, grids, mode='bilinear')
     return img_warp

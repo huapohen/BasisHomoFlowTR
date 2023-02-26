@@ -21,6 +21,7 @@ from common import utils
 from common.manager import Manager
 from evaluate import evaluate
 from loss.losses import compute_losses
+from tools.vis_util import vis_save_image
 from parameters import get_config, dictToObj
 
 
@@ -69,6 +70,7 @@ parser.add_argument(
 
 
 def train(model, manager):
+    params = manager.params
 
     # loss status initial
     manager.reset_loss_status()
@@ -86,7 +88,8 @@ def train(model, manager):
 
             # compute model output and loss
             output_batch = model(data_batch)
-            loss = compute_losses(output_batch, data_batch, manager.params)
+            output_batch = net.second_stage(params, data_batch, output_batch)
+            loss = compute_losses(params, data_batch, output_batch)
 
             # update loss status and print current loss and average loss
             manager.update_loss_status(loss=loss, split="train")
@@ -107,6 +110,10 @@ def train(model, manager):
 
             t.set_description(desc=print_str)
             t.update()
+
+            if 'is_vis_and_exit' in vars(params) and params.is_vis_and_exit:
+                vis_save_image(data_batch, output_batch, data_batch.shape[0])
+                sys.exit()
 
     manager.logger.info(print_str)
     manager.scheduler.step()
@@ -207,6 +214,7 @@ if __name__ == '__main__':
     logger.info("Loading the train datasets from {}".format(params.train_data_dir))
 
     # fetch dataloaders
+    params.data_mode = 'train'
     dl = data_loader_dybev if params.is_dybev else data_loader
     dataloaders = dl.fetch_dataloader(params)
 

@@ -15,9 +15,11 @@ from torch.autograd import Variable
 from tqdm import tqdm
 
 import dataset.data_loader as data_loader
+import dataset.data_loader_dybev as data_loader_dybev
 import model.net as net
 from common import utils
 from loss.losses import compute_losses, compute_eval_results
+from tools.vis_util import vis_save_image, eval_save_result
 from common.manager import Manager
 from parameters import get_config, dictToObj
 from easydict import EasyDict
@@ -49,12 +51,12 @@ def evaluate(model, manager):
         manager: a class instance that contains objects related to train and evaluate.
     """
     # print("eval begin!")
+    params = manager.params
 
     # loss status and eval status initial
     manager.reset_loss_status()
     manager.reset_metric_status(manager.params.eval_type)
     model.eval()
-    params = manager.params
 
     RE = [
         '0000011',
@@ -84,28 +86,32 @@ def evaluate(model, manager):
     MSE_LL = []
     MSE_SF = []
     MSE_LF = []
+    MSE_BEV = []
 
     with torch.no_grad():
         # compute metrics over the dataset
         iter_max = len(manager.dataloaders[params.eval_type])
         with tqdm(total=iter_max) as t:
             for k, data_batch in enumerate(manager.dataloaders[params.eval_type]):
-                # data parse
-                imgs_full = data_batch["imgs_ori"]
-                video_name = data_batch["video_name"]
-                npy_name = data_batch["npy_name"]
                 # move to GPU if available
                 data_batch = utils.tensor_gpu(data_batch)
                 # compute model output
-                output_batch = model(data_batch)
+                output_batch = net.second_stage(params, data_batch, output_batch)
+                # (optional) compute loss
+                loss = compute_losses(params, data_batch, output_batch)
+
+                if 'is_vis_and_exit' in vars(params) and params.is_vis_and_exit:
+                    print(loss)
+                    vis_save_image(data_batch, output_batch, data_batch.shape[0])
+                    sys.exit()
+
                 # compute all metrics on this batch
                 eval_results = compute_eval_results(data_batch, output_batch, params)
-                img1s_full_warp = eval_results["img1_full_warp"]
-                err_avg = eval_results["errs"]
 
+                video_name = data_batch["video_name"]
+                err_avg = eval_results["errs"]
                 for j in range(len(err_avg)):
                     k += 1
-
                     if video_name[j] in RE:
                         MSE_RE.append(err_avg[j])
                     elif video_name[j] in LT:
@@ -116,23 +122,14 @@ def evaluate(model, manager):
                         MSE_SF.append(err_avg[j])
                     elif video_name[j] in LF:
                         MSE_LF.append(err_avg[j])
+                    else:  # bev
+                        MSE_BEV.append(err_avg[j])
 
                     if k % params.save_iteration == 0 and params.is_save_gif:
-                        img2_full = imgs_full[j, 3:, ...].permute(1, 2, 0)
-                        img2_full = img2_full.cpu().numpy().astype(np.uint8)
-                        img2_full = cv2.cvtColor(img2_full, cv2.COLOR_BGR2RGB)
+                        eval_save_result(manager, j, k, data_batch, eval_results)
 
-                        img1_full_warp = img1s_full_warp[j].permute(1, 2, 0)
-                        img1_full_warp = img1_full_warp.cpu().numpy().astype(np.uint8)
-                        img1_full_warp = cv2.cvtColor(img1_full_warp, cv2.COLOR_BGR2RGB)
-
-                        save_file = [img2_full, img1_full_warp]
-                        # save_file = img1_full_warp
-                        save_name = npy_name[j] + "_" + str(err_avg[j])
-                        eval_save_result(save_file, save_name, manager, k)
-
-                # t.set_description(f"{k}:{err_avg.mean():.4f}")
-                t.set_description()
+                t.set_description(f"{k}:{err_avg.mean():.4f} ")
+                # t.set_description()
                 t.update()
 
         MSE_RE_avg = sum(MSE_RE) / len(MSE_RE)
@@ -140,15 +137,17 @@ def evaluate(model, manager):
         MSE_LL_avg = sum(MSE_LL) / len(MSE_LL)
         MSE_SF_avg = sum(MSE_SF) / len(MSE_SF)
         MSE_LF_avg = sum(MSE_LF) / len(MSE_LF)
+        MSE_BEV_avg = sum(MSE_BEV) / len(MSE_BEV)
         MSE_avg = (MSE_RE_avg + MSE_LT_avg + MSE_LL_avg + MSE_SF_avg + MSE_LF_avg) / 5
 
         Metric = {
+            "AVG": MSE_avg,
+            "MSE_BEV_avg": MSE_BEV_avg,
             "MSE_RE_avg": MSE_RE_avg,
             "MSE_LT_avg": MSE_LT_avg,
             "MSE_LL_avg": MSE_LL_avg,
             "MSE_SF_avg": MSE_SF_avg,
             "MSE_LF_avg": MSE_LF_avg,
-            "AVG": MSE_avg,
         }
         manager.update_metric_status(
             metrics=Metric, split=manager.params.eval_type, batch_size=1
@@ -156,10 +155,12 @@ def evaluate(model, manager):
 
         # update data to logger
         manager.logger.info(
-            "Loss/valid epoch_{} {}: {:.2f}. RE:{:.4f} LT:{:.4f} LL:{:.4f} SF:{:.4f} LF:{:.4f} ".format(
+            "Loss/valid epoch_{} {}: {:.2f}. BEV:{:.4f} "
+            + "RE:{:.4f} LT:{:.4f} LL:{:.4f} SF:{:.4f} LF:{:.4f} ".format(
                 manager.params.eval_type,
                 manager.epoch_val,
                 MSE_avg,
+                MSE_BEV_avg,
                 MSE_RE_avg,
                 MSE_LT_avg,
                 MSE_LL_avg,
@@ -176,32 +177,6 @@ def evaluate(model, manager):
         # manager.epoch_val += 1
 
         model.train()
-
-
-def eval_save_result(save_file, save_name, manager, k=0):
-
-    type_name = 'gif' if type(save_file) == list else 'jpg'
-    save_dir_gif = os.path.join(manager.params.model_dir, type_name)
-    if not os.path.exists(save_dir_gif):
-        os.makedirs(save_dir_gif)
-
-    save_dir_gif_epoch = os.path.join(save_dir_gif, str(manager.epoch_val))
-    if k == manager.params.save_iteration and os.path.exists(save_dir_gif_epoch):
-        shutil.rmtree(save_dir_gif_epoch)
-    if not os.path.exists(save_dir_gif_epoch):
-        os.makedirs(save_dir_gif_epoch)
-
-    save_path = os.path.join(save_dir_gif_epoch, save_name + '.' + type_name)
-    if type(save_file) == list:  # save gif
-        utils.create_gif(save_file, save_path)
-    elif type(save_file) == str:  # save string information
-        f = open(save_path, 'w')
-        f.write(save_file)
-        f.close()
-    else:  # save single image
-        cv2.imwrite(save_path, save_file)
-    if manager.params.is_vis_and_exit:
-        sys.exit()
 
 
 def run_all_exps(exp_id):
@@ -254,7 +229,9 @@ def run_all_exps(exp_id):
     logging.info("Creating the dataset...")
 
     # Fetch dataloaders
-    dataloaders = data_loader.fetch_dataloader(params)
+    params.data_mode = 'test'
+    dl = data_loader_dybev if params.is_dybev else data_loader
+    dataloaders = dl.fetch_dataloader(params)
 
     # Define the model and optimizer
     if params.cuda:

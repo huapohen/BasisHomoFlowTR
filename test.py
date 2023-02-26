@@ -7,6 +7,7 @@ import time
 import glob
 import json
 import random
+import imageio
 import numpy as np
 import torch
 from torch.autograd import Variable
@@ -136,9 +137,10 @@ def evaluate_main(model, args, params):
         vis_img_ori = cv2.cvtColor(vis_img_ori, cv2.COLOR_BGR2RGB)
 
         # results saving
-        utils.create_gif(
-            [img1_full, img2_full_warp], os.path.join(result_files, name + ".gif")
-        )
+        frmes =  [img1_full, img2_full_warp]
+        svname = os.path.join(result_files, name + ".gif")
+        imageio.mimsave(svname, frmes, 'GIF', duration=0.5)
+        
         cv2.imwrite(os.path.join(result_files, name + "_vis.jpg"), vis_img)
         cv2.imwrite(os.path.join(result_files, name + "_vis_ori.jpg"), vis_img_ori)
         times += eval_results["times"]

@@ -5,13 +5,6 @@ import shutil
 import imageio
 
 
-def create_gif(image_list, gif_name, duration=0.5):
-    frames = []
-    for image_name in image_list:
-        frames.append(image_name)
-    imageio.mimsave(gif_name, frames, 'GIF', duration=duration)
-
-
 def extract_overlap_hw():
     info = [
         '5 numbers: h1, h2, w1, w2, angle.',
@@ -116,7 +109,7 @@ def unit_test_overlap():
     cv2.putText(lf_front, 'front', (200, 150), *txt_info)
     cv2.imwrite(f'{sv_dir}/lf_f.jpg', lf_front)
     cv2.imwrite(f'{sv_dir}/lf_l.jpg', lf_left)
-    create_gif([lf_left, lf_front], f'{sv_dir}/lf.gif')
+    imageio.mimsave(f'{sv_dir}/lf.gif', [lf_left, lf_front], 'GIF', duration=0.5)
     print('lf_front', lf_front.shape)
     print('lf_left', lf_left.shape)
 
@@ -133,7 +126,7 @@ def unit_test_overlap():
     cv2.putText(rb_back, 'back', (150, 50), *txt_info)
     cv2.imwrite(f'{sv_dir}/rb_r.jpg', rb_right)
     cv2.imwrite(f'{sv_dir}/rb_b.jpg', rb_back)
-    create_gif([rb_back, rb_right], f'{sv_dir}/rb.gif')
+    imageio.mimsave(f'{sv_dir}/rb.gif', [rb_back, rb_right], 'GIF', duration=0.5)
     print('rb_right', rb_right.shape)
     print('rb_back', rb_back.shape)
 
@@ -149,7 +142,7 @@ def unit_test_overlap():
     cv2.putText(rf_front, 'front', (100, 150), *txt_info)
     cv2.imwrite(f'{sv_dir}/rf_r.jpg', rf_right)
     cv2.imwrite(f'{sv_dir}/rf_b.jpg', rf_front)
-    create_gif([rf_right, rf_front], f'{sv_dir}/rf.gif')
+    imageio.mimsave(f'{sv_dir}/rf.gif', [rf_right, rf_front], 'GIF', duration=0.5)
     print('rf_front', rf_front.shape)
     print('rf_right', rf_right.shape)
 
@@ -166,7 +159,7 @@ def unit_test_overlap():
     cv2.putText(lb_back, 'back', (100, 150), *txt_info)
     cv2.imwrite(f'{sv_dir}/lb_l.jpg', lb_left)
     cv2.imwrite(f'{sv_dir}/lb_b.jpg', lb_back)
-    create_gif([lb_left, lb_back], f'{sv_dir}/lb.gif')
+    imageio.mimsave(f'{sv_dir}/lb.gif', [lb_left, lb_back], 'GIF', duration=0.5)
     print('lb_left', lb_left.shape)
     print('lb_back', lb_back.shape)
 

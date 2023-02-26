@@ -70,7 +70,15 @@ class HomoTrainData(Dataset):
         img2_full_rgb = torch.tensor(img2_full_rgb).float()
 
         # img aug
-        img1, img2, img1_patch, img2_patch, start = self.data_aug(
+        (
+            img1,
+            img2,
+            img1_patch,
+            img2_patch,
+            start,
+            img1_patch_rgb,
+            img2_patch_rgb,
+        ) = self.data_aug(
             img1,
             img2,
             normalize=self.normalize,
@@ -98,6 +106,8 @@ class HomoTrainData(Dataset):
         data_dict['img2_full'] = img2_full
         data_dict['img1_full_rgb'] = img1_full_rgb
         data_dict['img2_full_rgb'] = img2_full_rgb
+        data_dict['img1_patch_rgb'] = img1_patch_rgb
+        data_dict['img2_patch_rgb'] = img2_patch_rgb
         data_dict["imgs_gray_full"] = imgs_gray_full
         data_dict["imgs_gray_patch"] = imgs_gray_patch
         data_dict["start"] = start
@@ -126,13 +136,23 @@ class HomoTrainData(Dataset):
             img1 = (img1 - self.mean_I) / self.std_I
             img2 = (img2 - self.mean_I) / self.std_I
 
+        img1_full_gray, img2_full_gray = img1, img2
+
+        img1_patch_rgb, img2_patch_rgb, start = random_crop(img1, img2)
+
         if gray:
-            img1 = np.mean(img1, axis=2, keepdims=True)
-            img2 = np.mean(img2, axis=2, keepdims=True)
+            img1_patch_gray = np.mean(img1_patch_rgb, axis=2, keepdims=True)
+            img2_patch_gray = np.mean(img2_patch_rgb, axis=2, keepdims=True)
 
-        img1_patch, img2_patch, start = random_crop(img1, img2)
-
-        return img1, img2, img1_patch, img2_patch, start
+        return (
+            img1_full_gray,
+            img2_full_gray,
+            img1_patch_gray,
+            img2_patch_gray,
+            start,
+            img1_patch_rgb,
+            img2_patch_rgb,
+        )
 
 
 class HomoTestData(Dataset):
@@ -198,13 +218,13 @@ class HomoTestData(Dataset):
             img1_rs = cv2.resize(img1_rs, (self.crop_size[1], self.crop_size[0]))
             img2_rs = cv2.resize(img2_rs, (self.crop_size[1], self.crop_size[0]))
 
-        img1_gray, img2_gray = self.data_aug(
+        img1_gray, img2_gray, img1_patch_rgb, img2_patch_rgb = self.data_aug(
             img1_rs,
             img2_rs,
             normalize=self.normalize,
             horizontal_flip=self.horizontal_flip_aug,
         )
-        img1_gray_full, img2_gray_full = self.data_aug(
+        img1_gray_full, img2_gray_full, _, _ = self.data_aug(
             img1,
             img2,
             normalize=self.normalize,
@@ -256,6 +276,8 @@ class HomoTestData(Dataset):
         data_dict['img2_full'] = img2_full
         data_dict['img1_full_rgb'] = img1_full_rgb
         data_dict['img2_full_rgb'] = img2_full_rgb
+        data_dict['img1_patch_rgb'] = img1_patch_rgb
+        data_dict['img2_patch_rgb'] = img2_patch_rgb
         data_dict["points"] = points
         data_dict['points_1'] = pts_1
         data_dict['points_2'] = pts_2
@@ -269,8 +291,8 @@ class HomoTestData(Dataset):
     def data_aug(self, img1, img2, gray=True, normalize=True, horizontal_flip=True):
 
         if horizontal_flip and random.random() <= 0.5:
-            img1 = np.flip(img1, 1)
-            img2 = np.flip(img2, 1)
+            img1_ = np.flip(img1, 1)
+            img2_ = np.flip(img2, 1)
 
         if normalize:
             img1 = (img1 - self.mean_I) / self.std_I
@@ -280,7 +302,7 @@ class HomoTestData(Dataset):
             img1 = np.mean(img1, axis=2, keepdims=True)
             img2 = np.mean(img2, axis=2, keepdims=True)
 
-        return img1, img2
+        return img1, img2, img1_, img2_
 
 
 def fetch_dataloader(params):
