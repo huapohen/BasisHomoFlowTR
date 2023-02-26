@@ -49,7 +49,7 @@ class HomoData(Dataset):
                 data_bev += names
             return data_bev
 
-        data_nature = open(f'{params.data_dir}/{mode}_list.txt', 'r').readlines()
+        data_nature = open(f'{params.data_dir}/nature/{mode}_list.txt', 'r').readlines()
 
         self.seed = 0
         random.seed(self.seed)
@@ -116,7 +116,9 @@ class HomoData(Dataset):
             img_names[-1] = img_names[-1][:-1]
             img1_name, img2_name = img_names
             nature_mode = 'Train' if self.mode == 'train' else 'Test'
-            prefix_path = os.path.join(params.data_dir, 'nature', nature_mode)
+            prefix_path = os.path.join(
+                params.data_dir, 'nature', nature_mode, video_name
+            )
             npy_path = os.path.join(params.data_dir, 'nature', "Coordinate-v2")
 
         img1 = cv2.imread(f'{prefix_path}/{img1_name}')
@@ -146,7 +148,7 @@ class HomoData(Dataset):
         aug_params += [self.is_gray, self.is_norm, self.is_h_flip]
         data_dict = data_aug(data_dict, aug_params, img1, img2, mode=self.mode)
 
-        data_dict = get_crop_pts(data_dict['start'], crop_size)
+        data_dict = get_crop_pts(data_dict, crop_size)
 
         if self.mode == 'test':
             pts_params = npy_path, video_name, npy_name, is_bev_sample
@@ -159,8 +161,9 @@ def get_crop_pts(data_dict, crop_size):
     px, py = data_dict['start']
     ph, pw = crop_size
     pts = [[px, py], [px + pw, py], [px, py + ph], [px + pw, py + ph]]
-    data_dict['points_1'] = torch.from_numpy(np.array(pts)).float()
-    data_dict['points_2'] = torch.from_numpy(np.array(pts)).float()
+    data_dict['points_1'] = torch.tensor(pts).float()
+    data_dict['points_2'] = torch.tensor(pts).float()
+    data_dict['start'] = torch.tensor(data_dict['start']).float().reshape(2, 1, 1)
     return data_dict
 
 
@@ -232,7 +235,7 @@ def data_aug(data_dict, aug_params, img1, img2, mode='train'):
     imgs = [torch.tensor(img.transpose((2, 0, 1))).float() for img in imgs]
 
     # output
-    data_dict["start"] = torch.tensor(start).reshape(2, 1, 1).float()
+    data_dict["start"] = start
     key_list = [
         'img1_full_gray',
         'img2_full_gray',

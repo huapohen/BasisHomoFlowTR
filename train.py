@@ -88,7 +88,6 @@ def train(model, manager):
 
             # compute model output and loss
             output_batch = model(data_batch)
-            output_batch = net.second_stage(params, data_batch, output_batch)
             loss = compute_losses(params, data_batch, output_batch)
 
             # update loss status and print current loss and average loss
@@ -210,9 +209,6 @@ if __name__ == '__main__':
     # Set the tensorboard writer
     log_dir = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
-    # Create the input data pipeline
-    logger.info("Loading the train datasets from {}".format(params.train_data_dir))
-
     # fetch dataloaders
     params.data_mode = 'train'
     dl = data_loader_dybev if params.is_dybev else data_loader
@@ -229,7 +225,13 @@ if __name__ == '__main__':
         model = torch.nn.DataParallel(model, device_ids=device_ids)
 
     # optimizer
-    optimizer = optim.AdamW(model.parameters(), lr=params.learning_rate)
+    if params.optimizer == 'AdamW':
+        optimizer_func = optim.AdamW
+    elif params.optimizer == 'Adam':
+        optimizer_func = optim.Adam
+    else:
+        optimizer_func = optim.SGD
+    optimizer = optimizer_func(model.parameters(), lr=params.learning_rate)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
     # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.995)
 

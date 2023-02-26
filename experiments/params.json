@@ -2,7 +2,7 @@
     "project_name": "HomoBases",
     "train_data_ratio": [
         [
-            "baseshomo",
+            "nature",
             1.0
         ],
         [
@@ -10,9 +10,9 @@
             0.1
         ]
     ],
-    "val_data_ratio": [
+    "test_data_ratio": [
         [
-            "baseshomo",
+            "nature",
             1.0
         ],
         [
@@ -33,7 +33,7 @@
     "transform_type": "basic",
     "net_type": "basic",
     "loss_type": "basic",
-    "eval_type": "val",
+    "eval_type": "test",
     "major_metric": "AVG",
     "save_mode": "local",
     "learning_rate": 1e-4,
@@ -51,8 +51,8 @@
         72.45
     ],
     "save_iteration": 10,
-    "train_batch_size": 8,
-    "eval_batch_size": 8,
+    "train_batch_size": 16,
+    "eval_batch_size": 16,
     "num_epochs": 20,
     "eval_freq": 2000,
     "save_summary_steps": 100,
@@ -107,9 +107,10 @@
         256,
         256
     ],
-    "is_dybev": false,
+    "is_dybev": true,
     "is_debug_dataloader": false,
     "is_gray": true,
     "is_norm": true,
-    "is_h_flip": true
+    "is_h_flip": true,
+    "optimizer": "AdamW"
 }

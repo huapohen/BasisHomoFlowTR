@@ -115,32 +115,22 @@ def experiment():
     params = utils.Params(json_path)
 
     exp_name = 'baseshomo'
-    exp_start_id = 9
+    exp_start_id = 14
     session_name = str(exp_start_id)  # tmux session name, need pre-create
     param_pool_dict = collections.OrderedDict()
     device_used = collections.OrderedDict()
-    device_used = ['4', '5', '6', '7']
-    param_pool_dict["train_batch_size"] = [8]
-    param_pool_dict["eval_batch_size"] = [8]
+    device_used = ['4', '5', '6']
+    param_pool_dict["train_batch_size"] = [16]
+    param_pool_dict["eval_batch_size"] = [16]
     param_pool_dict["num_workers"] = [8]
-    param_pool_dict['train_data_ratio'] = [0.1]
+    param_pool_dict['optimizer'] = ['Adam']
     param_pool_dict['is_dybev'] = [True]
-    param_pool_dict['train_data_dir'] = ['/home/data/lwb/data/dybev/v6']
-    param_pool_dict['camera_list'] = [
-        ['front'],
-        ['back'],
-        ['left'],
-        ['right'],
-    ]
+    param_pool_dict['loss_func_type'] = ['photo', 'feature', 'all']
+    param_pool_dict['train_data_dir'] = [["nature", 0.1]]
     param_pool_dict['exp_description'] = [
         '''
-        exp_9-12:
-        param_pool_dict['camera_list'] = [
-            ['front'],
-            ['back'],
-            ['left'],
-            ['right'],
-        ] 
+        exp_14-16:
+        photo_loss, feature_loss, all_loss
         '''
     ]
 

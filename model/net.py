@@ -120,89 +120,102 @@ class Net(nn.Module):
         return output
 
 
-def warp_head(model, input, output):
-    start = input['start']
-    x1_patch_gray = input['img1_patch_gray']
-    x2_patch_gray = input['img2_patch_gray']
-    x1_patch_rgb = input['img1_patch_rgb']
-    x2_patch_rgb = input['img2_patch_rgb']
-    x1_full_gray = input['img1_full_gray']
-    x2_full_gray = input['img2_full_gray']
-    x1_full_rgb = input['img1_full_rgb']
-    x2_full_rgb = input['img2_full_rgb']
+class HomoTR(nn.Module):
+    '''reference DETR'''
 
-    output['offset_1'] = output['weight_1'].reshape(-1, 4, 2)
-    output['offset_2'] = output['weight_2'].reshape(-1, 4, 2)
-    output['points_2_pred'] = input['points_1'] + output['offset_1']
-    output['points_1_pred'] = input['points_2'] + output['offset_2']
-    homo_21 = dlt_homo(output['points_2_pred'], input['points_1'], method="Axb")
-    homo_12 = dlt_homo(output['points_1_pred'], input['points_2'], method="Axb")
+    def __init__(self, backbone):
+        super().__init__()
+        self.backbone = backbone
 
-    batch_size, _, h_patch, w_patch = x1_patch_gray.size()
-    batch_size, _, h_full, w_full = x1_full_gray.size()
-    tgt_hwp = (batch_size, h_patch, w_patch)
-    tgt_hwf = (batch_size, h_full, w_full)
+    def forward(self, input):
+        output = self.backbone(input)
+        output = self.warp_head(input, output)
+        return output
 
-    # all features are gray
+    def warp_head(self, input, output):
+        start = input['start']
+        x1_patch_gray = input['img1_patch_gray']
+        x2_patch_gray = input['img2_patch_gray']
+        x1_patch_rgb = input['img1_patch_rgb']
+        x2_patch_rgb = input['img2_patch_rgb']
+        x1_full_gray = input['img1_full_gray']
+        x2_full_gray = input['img2_full_gray']
+        x1_full_rgb = input['img1_full_rgb']
+        x2_full_rgb = input['img2_full_rgb']
 
-    x1_patch_gray_warp_p = warp_from_H(homo_21, x1_full_gray, *tgt_hwp, start)
-    x2_patch_gray_warp_p = warp_from_H(homo_12, x2_full_gray, *tgt_hwp, start)
-    fea1_patch_warp = model.share_feature(x1_patch_gray_warp_p)
-    fea2_patch_warp = model.share_feature(x2_patch_gray_warp_p)
+        output['offset_1'] = output['weight_1'].reshape(-1, 4, 2)
+        output['offset_2'] = output['weight_2'].reshape(-1, 4, 2)
+        output['points_2_pred'] = input['points_1'] + output['offset_1']
+        output['points_1_pred'] = input['points_2'] + output['offset_2']
+        homo_21 = dlt_homo(output['points_2_pred'], input['points_1'], method="Axb")
+        homo_12 = dlt_homo(output['points_1_pred'], input['points_2'], method="Axb")
 
-    # suffix `_p` means patch size and `_f` means full size, therefore
-    #  after `warp_from_H` the `_patch_warp` and `_full_warp` means nothing!
-    fea1_full = model.share_feature(x1_full_gray)
-    fea2_full = model.share_feature(x2_full_gray)
-    fea1_full_warp_p = warp_from_H(homo_21, fea1_full, *tgt_hwp, start)
-    fea2_full_warp_p = warp_from_H(homo_12, fea2_full, *tgt_hwp, start)
-    fea1_full_warp_f = warp_from_H(homo_21, fea1_full, *tgt_hwf, 0)
-    fea2_full_warp_f = warp_from_H(homo_12, fea2_full, *tgt_hwf, 0)
+        batch_size, _, h_patch, w_patch = x1_patch_gray.size()
+        batch_size, _, h_full, w_full = x1_full_gray.size()
+        tgt_hwp = (batch_size, h_patch, w_patch)
+        tgt_hwf = (batch_size, h_full, w_full)
 
-    # img1 warp to img2, img2_pred = img1_warp
-    x1_patch_rgb_warp_p = warp_from_H(homo_21, x1_patch_rgb, *tgt_hwp, start)
-    x2_patch_rgb_warp_p = warp_from_H(homo_12, x2_patch_rgb, *tgt_hwp, start)
-    x1_full_rgb_warp_f = warp_from_H(homo_21, x1_full_rgb, *tgt_hwf, 0)
-    x2_full_rgb_warp_f = warp_from_H(homo_12, x2_full_rgb, *tgt_hwf, 0)
+        # all features are gray
 
-    output['H_flow_21'] = homo_21
-    output['H_flow_12'] = homo_12
+        x1_patch_gray_warp_p = warp_from_H(homo_21, x1_full_gray, *tgt_hwp, start)
+        x2_patch_gray_warp_p = warp_from_H(homo_12, x2_full_gray, *tgt_hwp, start)
+        fea1_patch_warp = self.backbone.share_feature(x1_patch_gray_warp_p)
+        fea2_patch_warp = self.backbone.share_feature(x2_patch_gray_warp_p)
 
-    output['fea1_full'] = fea1_full
-    output['fea2_full'] = fea2_full
-    output["fea1_full_warp_p"] = fea1_full_warp_p
-    output["fea2_full_warp_p"] = fea2_full_warp_p
-    output["fea1_full_warp_f"] = fea1_full_warp_f
-    output["fea2_full_warp_f"] = fea2_full_warp_f
-    output["fea1_patch_warp"] = fea1_patch_warp
-    output["fea2_patch_warp"] = fea2_patch_warp
+        # suffix `_p` means patch size and `_f` means full size, therefore
+        #  after `warp_from_H` the `_patch_warp` and `_full_warp` means nothing!
+        fea1_full = self.backbone.share_feature(x1_full_gray)
+        fea2_full = self.backbone.share_feature(x2_full_gray)
+        fea1_full_warp_p = warp_from_H(homo_21, fea1_full, *tgt_hwp, start)
+        fea2_full_warp_p = warp_from_H(homo_12, fea2_full, *tgt_hwp, start)
+        fea1_full_warp_f = warp_from_H(homo_21, fea1_full, *tgt_hwf, 0)
+        fea2_full_warp_f = warp_from_H(homo_12, fea2_full, *tgt_hwf, 0)
 
-    output["img1_patch_gray_warp_p"] = x1_patch_gray_warp_p
-    output["img2_patch_gray_warp_p"] = x2_patch_gray_warp_p
-    output["img1_patch_rgb_warp_p"] = x1_patch_rgb_warp_p
-    output["img2_patch_rgb_warp_p"] = x2_patch_rgb_warp_p
-    output['img1_full_rgb_warp_f'] = x1_full_rgb_warp_f
-    output['img2_full_rgb_warp_f'] = x2_full_rgb_warp_f
+        # img1 warp to img2, img2_pred = img1_warp
+        x1_patch_rgb_warp_p = warp_from_H(homo_21, x1_patch_rgb, *tgt_hwp, start)
+        x2_patch_rgb_warp_p = warp_from_H(homo_12, x2_patch_rgb, *tgt_hwp, start)
+        x1_full_rgb_warp_f = warp_from_H(homo_21, x1_full_rgb, *tgt_hwf, 0)
+        x2_full_rgb_warp_f = warp_from_H(homo_12, x2_full_rgb, *tgt_hwf, 0)
 
-    return output
+        output['H_flow_21'] = homo_21
+        output['H_flow_12'] = homo_12
+
+        output['fea1_full'] = fea1_full
+        output['fea2_full'] = fea2_full
+        output["fea1_full_warp_p"] = fea1_full_warp_p
+        output["fea2_full_warp_p"] = fea2_full_warp_p
+        output["fea1_full_warp_f"] = fea1_full_warp_f
+        output["fea2_full_warp_f"] = fea2_full_warp_f
+        output["fea1_patch_warp"] = fea1_patch_warp
+        output["fea2_patch_warp"] = fea2_patch_warp
+
+        output["img1_patch_gray_warp_p"] = x1_patch_gray_warp_p
+        output["img2_patch_gray_warp_p"] = x2_patch_gray_warp_p
+        output["img1_patch_rgb_warp_p"] = x1_patch_rgb_warp_p
+        output["img2_patch_rgb_warp_p"] = x2_patch_rgb_warp_p
+        output['img1_full_rgb_warp_f'] = x1_full_rgb_warp_f
+        output['img2_full_rgb_warp_f'] = x2_full_rgb_warp_f
+
+        return output
 
 
 def fetch_net(params):
 
     if params.net_type == "basic":
-        net = Net(params)
+        backbone = Net(params)
+        model = HomoTR(backbone)
     else:
         raise NotImplementedError("Unkown model: {}".format(params.net_type))
-    return net
+    return model
 
 
-def second_stage(params, input, output):
-    output = warp_head(input, output)
+# def second_stage(params, model, input, output):
+#     output = warp_head(model, input, output)
 
-    # if params.is_unit_test_model:
-    #     import sys
-    #     import model.unit_test as ut
+#     # if params.is_unit_test_model:
+#     #     import sys
+#     #     import model.unit_test as ut
 
-    #     sys.exit()
+#     #     sys.exit()
 
-    return output
+#     return output

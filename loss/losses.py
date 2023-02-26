@@ -80,8 +80,8 @@ def compute_losses(params, input, output):
         fea1_warp = output["fea1_full_warp_p"]
         fea2_warp = output["fea2_full_warp_p"]
 
-        im_diff_1 = input['img1_patch_gray'] - output["img2_patch_gray_warp"]
-        im_diff_2 = input['img2_patch_gray'] - output["img1_patch_gray_warp"]
+        im_diff_1 = input['img1_patch_gray'] - output["img2_patch_gray_warp_p"]
+        im_diff_2 = input['img2_patch_gray'] - output["img1_patch_gray_warp_p"]
 
         fea_diff_1 = output["fea2_full_warp_p"] - output["fea2_patch_warp"]
         fea_diff_2 = output["fea1_full_warp_p"] - output["fea1_patch_warp"]

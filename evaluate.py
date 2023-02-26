@@ -96,7 +96,8 @@ def evaluate(model, manager):
                 # move to GPU if available
                 data_batch = utils.tensor_gpu(data_batch)
                 # compute model output
-                output_batch = net.second_stage(params, data_batch, output_batch)
+                output_batch = model(data_batch)
+                # output_batch = net.second_stage(params, model, data_batch, output_batch)
                 # (optional) compute loss
                 loss = compute_losses(params, data_batch, output_batch)
 
