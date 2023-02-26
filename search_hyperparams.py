@@ -126,7 +126,7 @@ def experiment():
     param_pool_dict['optimizer'] = ['Adam']
     param_pool_dict['is_dybev'] = [True]
     param_pool_dict['loss_func_type'] = ['photo', 'feature', 'all']
-    param_pool_dict['train_data_ratio'] = [["nature", 0.1]]
+    param_pool_dict['train_data_ratio'] = [[["nature", 0.1]]]
     param_pool_dict['exp_description'] = [
         "exp_14-16: photo_loss, feature_loss, all_loss"
     ]
