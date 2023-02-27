@@ -206,15 +206,3 @@ def fetch_net(params):
     else:
         raise NotImplementedError("Unkown model: {}".format(params.net_type))
     return model
-
-
-# def second_stage(params, model, input, output):
-#     output = warp_head(model, input, output)
-
-#     # if params.is_unit_test_model:
-#     #     import sys
-#     #     import model.unit_test as ut
-
-#     #     sys.exit()
-
-#     return output

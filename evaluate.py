@@ -24,6 +24,9 @@ from common.manager import Manager
 from parameters import get_config, dictToObj
 from easydict import EasyDict
 
+''' add this line, because GTX30 serials' default torch.matmul() on cuda is uncorrected '''
+torch.backends.cuda.matmul.allow_tf32 = False
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument(

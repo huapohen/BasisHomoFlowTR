@@ -334,7 +334,7 @@ def fetch_dataloader(params):
             num_workers=params.num_workers,
             pin_memory=params.cuda,
             drop_last=True,
-            # prefetch_factor=3, # for pytorch >=1.5.0
+            prefetch_factor=3, # for pytorch >=1.5.0
         )
         dl.sample_number = train_ds.sample_number
         dataloaders["train"] = dl
@@ -347,8 +347,8 @@ def fetch_dataloader(params):
             batch_size=params.eval_batch_size,
             shuffle=False,
             num_workers=params.num_workers,
-            pin_memory=params.cuda
-            # prefetch_factor=3, # for pytorch >=1.5.0
+            pin_memory=params.cuda,
+            prefetch_factor=3, # for pytorch >=1.5.0
         )
         dl.sample_number = test_ds.sample_number
     else:
