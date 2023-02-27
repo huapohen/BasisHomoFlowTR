@@ -25,7 +25,7 @@ class Net(nn.Module):
         self.basis_vector_num = 16
         ch, cw = params.crop_size
         corners = np.array([[0, 0], [cw, 0], [0, ch], [cw, ch]], dtype=np.float32)
-        # The buffer is the same as the Parameter except that the gradient is not updated.
+        # The buffer is the same as the Parameter except that the gradient is not update.
         self.register_buffer('corners', torch.from_numpy(corners.reshape(1, 4, 2)))
 
         self.share_feature = ShareFeature(1)
@@ -157,6 +157,20 @@ class Net(nn.Module):
         output["img_warp"] = [img1_warp, img2_warp]
         output['basis_weight'] = [weight_f, weight_b]
         return output
+    
+    def compute_homo(self, input1, input2):
+        fea1_patch = self.share_feature(input1)
+        fea2_patch = self.share_feature(input2)
+        
+        x = torch.cat([fea1_patch, fea2_patch], dim=1)
+        weight_f = self.nets_forward(x)
+
+        offset = weight_f.reshape(-1, 4, 2)
+        corners2_pred = self.corners + offset
+        corners1 = self.corners.expand_as(corners2_pred)
+        homo_12 = dlt_homo(corners1, corners2_pred)
+
+        return homo_12
 
 
 # ========================================================================================================================
@@ -186,7 +200,7 @@ def util_test_net_forward():
     pts_1 = torch.from_numpy(np.array(pts)[np.newaxis]).float()
     pts_2 = torch.from_numpy(np.array(pts)[np.newaxis]).float()
 
-    img = cv2.imread('dataset/AVM/10467_A.jpg', 0)
+    img = cv2.imread('dataset/test/10467_A.jpg', 0)
     img_patch = img[py : py + ph, px : px + pw]
 
     input = torch.from_numpy(img[np.newaxis, np.newaxis].astype(np.float32))
@@ -213,7 +227,7 @@ def util_test_net_forward():
     out = net(data_dict)
     print(out.keys())
     res = out['img_warp'][0][0].cpu().detach().numpy().transpose((1, 2, 0))
-    cv2.imwrite('dataset/AVM/test_res.jpg', res)
+    cv2.imwrite('dataset/test/test_res.jpg', res)
 
 
 if __name__ == '__main__':

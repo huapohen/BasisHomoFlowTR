@@ -36,7 +36,7 @@ parser.add_argument(
     help="name of the file in --model_dir containing weights to load",
 )
 parser.add_argument(
-    '--result_files', default="ours_v3_ICCV_final", help="file for store eval results"
+    '--result_files', default="dataset", help="file for store eval results"
 )
 
 
@@ -56,7 +56,7 @@ def evaluate_main(model, args, params):
         num_steps: (int) number of batches to train on, each of size params.batch_size
     """
     print("eval begin!")
-    result_files = args.result_files
+    result_files = args.result_files + '/test'
     if not os.path.exists(result_files):
         os.makedirs(result_files)
     # set model to evaluation mode
@@ -64,7 +64,7 @@ def evaluate_main(model, args, params):
     torch.set_grad_enabled(False)
     k = 0
     times = 0
-    imgs_dir = args.test_data_dir + '/AVM'
+    imgs_dir = args.test_data_dir + '/test'
     crop_size = tuple(params.crop_size)
     # for name in imgs_names:
     if 1:
@@ -191,14 +191,15 @@ if __name__ == '__main__':
     # ipdb.set_trace()
     # Load the parameters from json file
     args = parser.parse_args()
-    # args.gpu_used = '5'
-    # args.model_dir = 'experiments/remove_lrr_and_only_photo_loss'
+    args.gpu_used = '5'
+    args.model_dir = 'experiments/baseshomo/exp_9'
 
     json_path = os.path.join(args.model_dir, 'params.json')
     assert os.path.isfile(json_path), "No json configuration file found at {}".format(
         json_path
     )
     params = utils.Params(json_path)
+    params.update(args.__dict__)
     # use GPU if available
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     if "_" in params.gpu_used:
@@ -210,17 +211,15 @@ if __name__ == '__main__':
     if params.cuda:
         torch.cuda.manual_seed(230)
     # Define the model
+    model = net.Net(params)
     if params.cuda:
-        model = net.Net(params).cuda()
+        model = model.cuda()
         gpu_num = len(params.gpu_used.split(","))
         device_ids = range(gpu_num)
-        # device_ids = range(torch.cuda.device_count())
         model = torch.nn.DataParallel(model, device_ids=device_ids)
-    else:
-        model = net.Net(params)
     logging.info("Starting evaluation")
     # Reload weights from the saved file
-    load_checkpoint(os.path.join(args.model_dir, args.restore_file + '.pth.tar'), model)
+    load_checkpoint(os.path.join(args.model_dir, args.restore_file), model)
 
     # Evaluate
     evaluate_main(model, args, params)
