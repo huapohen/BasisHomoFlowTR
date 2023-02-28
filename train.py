@@ -118,6 +118,7 @@ def train(model, manager):
 def train_and_evaluate(model, manager):
 
     for epoch in range(manager.params.num_epochs):
+        manager.params.current_epoch = epoch
 
         # compute number of batches in one epoch (one full pass over the training set)
         train(model, manager)

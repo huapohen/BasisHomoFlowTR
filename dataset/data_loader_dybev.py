@@ -158,7 +158,7 @@ class HomoTestData(Dataset):
 
         self.npy_list = os.path.join(params.test_data_dir, "test_list.txt")
         self.npy_path = os.path.join(params.test_data_dir, "Coordinate-v2")
-        self.files_path = os.path.join(params.test_data_dir, "Test")
+        self.files_path = os.path.join(params.test_data_dir, "test")
 
         self.data_infor = open(self.npy_list, 'r').readlines()
 

@@ -84,6 +84,8 @@ def evaluate(model, manager):
     MSE_LL = []
     MSE_SF = []
     MSE_LF = []
+    
+    kpr_list = []
 
     with torch.no_grad():
         # compute metrics over the dataset
@@ -104,7 +106,6 @@ def evaluate(model, manager):
                 err_avg = eval_results["errs"]
 
                 for j in range(len(err_avg)):
-                    k += 1
 
                     if video_name[j] in RE:
                         MSE_RE.append(err_avg[j])
@@ -131,9 +132,20 @@ def evaluate(model, manager):
                         save_name = npy_name[j] + "_" + str(err_avg[j])
                         eval_save_result(save_file, save_name, manager, k)
 
-                # t.set_description(f"{k}:{err_avg.mean():.4f}")
-                t.set_description()
+                prt_str = f"{k}:{np.mean(err_avg):.4f} "
+                kpr_list.append(prt_str)
+                t.set_description(prt_str)
                 t.update()
+        
+        kpr_dir = os.path.join(params.model_dir, 'kpr')
+        os.makedirs(kpr_dir, exist_ok=True)
+        kpr_name =  f'epoch={params.current_epoch:02d}_k_points_err_record.txt'
+        kpr_path = os.path.join(kpr_dir, kpr_name)
+        if os.path.exists(kpr_path):
+            os.remove(kpr_path)
+        kpr = open(kpr_path, 'a+')
+        kpr.write(('\n').join(kpr_list))
+        kpr.close()
 
         MSE_RE_avg = sum(MSE_RE) / len(MSE_RE)
         MSE_LT_avg = sum(MSE_LT) / len(MSE_LT)
@@ -156,8 +168,8 @@ def evaluate(model, manager):
 
         # update data to logger
         manager.logger.info(
-            "Loss/valid epoch_{} {}: {:.2f}. RE:{:.4f} LT:{:.4f} LL:{:.4f} SF:{:.4f} LF:{:.4f} ".format(
-                manager.params.eval_type,
+            "Loss/Test epoch_{} AVG: {:.4f}. "
+            + "RE:{:.4f} LT:{:.4f} LL:{:.4f} SF:{:.4f} LF:{:.4f} ".format(
                 manager.epoch_val,
                 MSE_avg,
                 MSE_RE_avg,
@@ -167,6 +179,7 @@ def evaluate(model, manager):
                 MSE_LF_avg,
             )
         )
+ 
 
         # For each epoch, print the metric
         manager.print_metrics(

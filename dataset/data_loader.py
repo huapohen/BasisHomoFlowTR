@@ -39,7 +39,7 @@ class HomoTrainData(Dataset):
         random.shuffle(self.data_infor)
 
         self.sample_number = {}
-        self.sample_number['baseshomo'] = {
+        self.sample_number['nature'] = {
             'ratio': params.train_data_ratio,
             "samples": len(self.data_infor),
         }
@@ -57,8 +57,8 @@ class HomoTrainData(Dataset):
         img1 = cv2.imread(f'{self.data_dir}/{img_names[0]}')
         img2 = cv2.imread(f'{self.data_dir}/{img_names[1][:-1]}')
         if self.params.is_test_assigned_img:
-            img1 = cv2.imread('dataset/AVM/10467_A.jpg')
-            img2 = cv2.imread('dataset/AVM/10467_B.jpg')
+            img1 = cv2.imread('dataset/test/10467_A.jpg')
+            img2 = cv2.imread('dataset/test/10467_B.jpg')
 
         img1_full = torch.tensor(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
         img2_full = torch.tensor(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))
@@ -152,8 +152,8 @@ class HomoTestData(Dataset):
         self.data_infor = open(self.npy_list, 'r').readlines()
 
         self.sample_number = {}
-        self.sample_number['baseshomo'] = {
-            'ratio': params.train_data_ratio,
+        self.sample_number['nature'] = {
+            'ratio': params.test_data_ratio,
             "samples": len(self.data_infor),
         }
         self.sample_number["total_samples"] = len(self.data_infor)
