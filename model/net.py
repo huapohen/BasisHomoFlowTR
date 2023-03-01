@@ -136,26 +136,18 @@ class Net(nn.Module):
         img1_warp = warp_image_from_H(homo_21, x1_full, *bhw)
         img2_warp = warp_image_from_H(homo_12, x2_full, *bhw)
 
-        output['img1_warp_rgb'] = warp_image_from_H(
-            homo_21, input['img1_full_rgb'], *bhw
-        )
-        output['img2_warp_rgb'] = warp_image_from_H(
-            homo_12, input['img2_full_rgb'], *bhw
-        )
-
         fea1_warp = warp_image_from_H(homo_21, fea1_full, *bhw)
         fea2_warp = warp_image_from_H(homo_12, fea2_full, *bhw)
 
         fea1_patch_warp = self.share_feature(img1_warp)
         fea2_patch_warp = self.share_feature(img2_warp)
 
-        output['fea_full'] = [fea1_full, fea2_full]
         output['H_flow'] = [homo_21, homo_12]
         output["fea_warp"] = [fea1_warp, fea2_warp]
         output["fea_patch"] = [fea1_patch, fea2_patch]
         output["fea_patch_warp"] = [fea1_patch_warp, fea2_patch_warp]
         output["img_warp"] = [img1_warp, img2_warp]
-        output['basis_weight'] = [weight_f, weight_b]
+        
         return output
     
     def compute_homo(self, input1, input2):

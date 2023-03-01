@@ -70,48 +70,6 @@ def geometricDistance_v2(inp, out, scale_x=1.0, scale_y=1.0):
     return err_1
 
 
-def vis_save_image_and_exit(output, input):
-    svd = 'experiments/tmp'
-    os.makedirs(svd, exist_ok=True)
-    shutil.rmtree(svd)
-    os.makedirs(svd)
-    imgs_patch = input['imgs_gray_patch']
-    img1_warp, img2_warp = output["img_warp"]
-    im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
-    im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
-    img_full_diff = input['img1_full'] - input['img2_full']
-    img_full_rgb_diff = input['img1_full_rgb'] - input['img2_full_rgb']
-    save_image(output["img_warp"][0], f'{svd}/img1_warp.jpg')
-    save_image(output["img_warp"][1], f'{svd}/img2_warp.jpg')
-    save_image(imgs_patch[:, :1, ...], f'{svd}/img1_patch.jpg')
-    save_image(imgs_patch[:, 1:, ...], f'{svd}/img2_patch.jpg')
-    save_image(im_diff_fw, f'{svd}/im_diff_fw.jpg')
-    save_image(im_diff_bw, f'{svd}/im_diff_bw.jpg')
-    save_image(input['imgs_gray_full'], f'{svd}/imgs_gray_full.png')
-    save_image(output['fea_full'][0], f'{svd}/fea_full1.jpg')
-    save_image(output['fea_full'][1], f'{svd}/fea_full2.jpg')
-    save_image(img_full_diff, f'{svd}/img_full_diff.jpg')
-    save_image(img_full_rgb_diff, f'{svd}/img_full_rgb_diff.jpg')
-    save_image(input['img1_full_rgb'] / 255.0, f'{svd}/img1_full_rgb.jpg')
-    save_image(input['img2_full_rgb'] / 255.0, f'{svd}/img2_full_rgb.jpg')
-    save_image(output['img1_warp_rgb'] / 255.0, f'{svd}/img1_warp_rgb.jpg')
-    save_image(output['img2_warp_rgb'] / 255.0, f'{svd}/img2_warp_rgb.jpg')
-    i1 = cv2.imread(f'{svd}/img1_full_rgb.jpg')
-    i2 = cv2.imread(f'{svd}/img2_warp_rgb.jpg')
-    txt_info = (cv2.FONT_HERSHEY_SIMPLEX, 1, (192, 192, 192), 2)
-    cv2.putText(i1, 'img1_ori', (200, 150), *txt_info)
-    cv2.putText(i2, 'img2_warp', (200, 200), *txt_info)
-    imageio.mimsave(f'{svd}/img1.gif', [i1, i2], 'GIF', duration=0.5)
-    i1 = cv2.imread(f'{svd}/img2_full_rgb.jpg')
-    i2 = cv2.imread(f'{svd}/img1_warp_rgb.jpg')
-    txt_info = (cv2.FONT_HERSHEY_SIMPLEX, 1, (192, 192, 192), 2)
-    cv2.putText(i1, 'img2_ori', (200, 150), *txt_info)
-    cv2.putText(i2, 'img1_warp', (200, 200), *txt_info)
-    imageio.mimsave(f'{svd}/img2.gif', [i1, i2], 'GIF', duration=0.5)
-
-    sys.exit()
-
-
 def compute_losses(output, input, params):
     losses = {}
 
@@ -143,9 +101,6 @@ def compute_losses(output, input, params):
             triplet_loss(fea1_patch, fea2_warp, fea2_patch).mean()
             + triplet_loss(fea2_patch, fea1_warp, fea1_patch).mean()
         )
-
-        if 'is_vis_and_exit' in vars(params) and params.is_vis_and_exit:
-            vis_save_image_and_exit(output, input)
 
         feature_loss = (
             losses["triplet_loss"] + params.weight_fil * losses["fea_loss_l1"]

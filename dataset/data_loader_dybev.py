@@ -66,15 +66,6 @@ class HomoData(Dataset):
         img_names = img_names.split(' ')
         img1 = cv2.imread(f'{self.data_dir}/{img_names[0]}')
         img2 = cv2.imread(f'{self.data_dir}/{img_names[1]}')
-        # ipdb.set_trace()
-        img1_full = torch.tensor(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
-        img2_full = torch.tensor(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))
-        img1_full = img1_full.unsqueeze(0).float()
-        img2_full = img2_full.unsqueeze(0).float()
-        img1_full_rgb = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img2_full_rgb = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img1_full_rgb = torch.tensor(img1_full_rgb).float()
-        img2_full_rgb = torch.tensor(img2_full_rgb).float()
 
         # img aug
         img1, img2, img1_patch, img2_patch, start = self.data_aug(
@@ -101,10 +92,6 @@ class HomoData(Dataset):
         start = torch.tensor(start).reshape(2, 1, 1).float()
         # output dict
         data_dict = {}
-        data_dict['img1_full'] = img1_full
-        data_dict['img2_full'] = img2_full
-        # data_dict['img1_full_rgb'] = img1_full_rgb
-        # data_dict['img2_full_rgb'] = img2_full_rgb
         data_dict["imgs_gray_full"] = imgs_gray_full
         data_dict["imgs_gray_patch"] = imgs_gray_patch
         data_dict["start"] = start
