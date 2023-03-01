@@ -73,47 +73,18 @@ def geometricDistance_v2(inp, out, scale_x=1.0, scale_y=1.0):
 def compute_losses(output, input, params):
     losses = {}
 
-    # compute losses
-    if params.loss_type == "basic":
-        imgs_patch = input['imgs_gray_patch']
+    imgs_patch = input['imgs_gray_patch']
 
-        fea1_patch, fea2_patch = output["fea_patch"]
-        img1_warp, img2_warp = output["img_warp"]
-        fea1_warp, fea2_warp = output['fea_warp']
-        fea1_patch_warp, fea2_patch_warp = output["fea_patch_warp"]
+    img1_warp, img2_warp = output["img_warp"]
 
-        im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
-        im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
+    im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
+    im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
 
-        fea_diff_fw = fea1_warp - fea1_patch_warp
-        fea_diff_bw = fea2_warp - fea2_patch_warp
+    photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
+    photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
 
-        # loss
-        losses["photo_loss_l1"] = photo_loss_function(
-            diff=im_diff_fw, q=1, averge=True
-        ) + photo_loss_function(diff=im_diff_bw, q=1, averge=True)
+    losses['total'] = photo_loss_f + photo_loss_b
 
-        losses["fea_loss_l1"] = photo_loss_function(
-            diff=fea_diff_fw, q=1, averge=True
-        ) + photo_loss_function(diff=fea_diff_bw, q=1, averge=True)
-
-        losses["triplet_loss"] = (
-            triplet_loss(fea1_patch, fea2_warp, fea2_patch).mean()
-            + triplet_loss(fea2_patch, fea1_warp, fea1_patch).mean()
-        )
-
-        feature_loss = (
-            losses["triplet_loss"] + params.weight_fil * losses["fea_loss_l1"]
-        )
-        photo_loss = losses["photo_loss_l1"]
-        if params.loss_func_type == 'feature':
-            losses['total'] = feature_loss
-        elif params.loss_func_type == 'photo':
-            losses['total'] = photo_loss
-        elif params.loss_func_type == 'all':
-            losses["total"] = feature_loss + photo_loss
-    else:
-        raise NotImplementedError
 
     return losses
 

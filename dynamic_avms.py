@@ -23,6 +23,7 @@ class DynamicAVMs(object):
         state_dict = state["state_dict"]
         new_dict = {}
         for key, value in state_dict.items():
+            ipdb.set_trace()
             new_dict[key[7:]] = state_dict[key]
         self.model.load_state_dict(new_dict)
 
