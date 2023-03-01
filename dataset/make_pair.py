@@ -14,6 +14,7 @@ class MakePair:
         version = 'v7'
         base_path = f'/home/data/lwb/data/dybev/{version}'
         src_path = f'{base_path}/{mode}/{source}'
+        self.mode = mode
         self.pair_dir = src_path + '/pair'
         # if os.path.exists(self.pair_dir):
             # shutil.rmtree(self.pair_dir)
@@ -24,6 +25,9 @@ class MakePair:
         self.sv_txt_name_suff = 'pair_names_list.txt'
         np.random.seed(1)
         self.pert_number = 10 if source == 'generate' else 1
+        if mode == 'test':
+            self.pert_number = 2
+            self.pert_number_train = 10
         self.cam_align = {
             'front': ['left', 'right'],
             'back': ['left', 'right'],
@@ -56,6 +60,8 @@ class MakePair:
                         name2 = name.replace('front', cam2)
                         pidx = name1.split('_')[-1]
                         jj = np.random.choice(self.pert_number, 1)[0]
+                        if self.mode == 'test':
+                            jj += self.pert_number_train
                         name22 = name2.replace(pidx, f'p{jj:04d}')
                         cam2_id_for_pair = self.cam_align[self.cam_align[cam1][i]]
                         ii = 0 if cam2_id_for_pair[0] == cam1 else 1
@@ -89,6 +95,8 @@ class MakePair:
                 pidx = name.split('_')[-1]
                 for i, cam in enumerate(self.cam_list):
                     j = np.random.choice(self.pert_number, 1)[0]
+                    if self.mode == 'test':
+                        j += self.pert_number_train
                     name2 = name.replace('front', cam)
                     name2 = name2.replace(pidx, f'p{j:04d}')
                     sample_pair.append(f'{cam}/{name2}_0.jpg')
@@ -117,13 +125,14 @@ class MakePair:
 if __name__ == '__main__':
 
     mode_list = ['train', 'test']
-    # source_list = ['bev', 'generate']
-    source_list = ['generate']
+    # mode_list = ['test']
+    source_list = ['bev', 'generate']
+    # source_list = ['generate']
     # source_list = ['bev']
 
     for mode in mode_list:
         for source in source_list:
             print(mode, source)
             mp = MakePair(mode, source)
-            # mp.pert_to_pert_two_camera()
+            mp.pert_to_pert_two_camera()
             mp.pert_to_pert_four_camera()

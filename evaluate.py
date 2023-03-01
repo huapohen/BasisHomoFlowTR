@@ -4,6 +4,7 @@ import os
 import sys
 import cv2
 import json
+import ipdb
 import shutil
 import imageio
 import logging
@@ -15,6 +16,7 @@ from torch.autograd import Variable
 from tqdm import tqdm
 
 import dataset.data_loader as data_loader
+import dataset.data_loader_dybev as data_loader_dybev
 import model.net as net
 from common import utils
 from loss.losses import compute_losses, compute_eval_results
@@ -244,6 +246,7 @@ def run_all_exps(exp_id):
         params_model = utils.Params(model_json_path)
         params.update(params_model.dict)
         params.update(obj_params)
+        # ipdb.set_trace()
 
     # Only load model weights
     params.only_weights = True
@@ -267,7 +270,8 @@ def run_all_exps(exp_id):
     logging.info("Creating the dataset...")
 
     # Fetch dataloaders
-    dataloaders = data_loader.fetch_dataloader(params)
+    dl = data_loader_dybev if params.is_dybev else data_loader
+    dataloaders = dl.fetch_dataloader(params)
 
     # Define the model and optimizer
     if params.cuda:

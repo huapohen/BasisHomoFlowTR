@@ -8,7 +8,7 @@ from yacs.config import CfgNode as CN
 def train_config(cfg):
     cfg.exp_id = 8
     cfg.gpu_used = '5'
-    cfg.train_data_ratio = 0.1
+    cfg.train_data_ratio = 1.0
     # cfg.is_vis_and_exit = True
     cfg.train_data_dir = '/home/data/lwb/data/dybev/v7'
     cfg.test_data_dir = cfg.train_data_dir
@@ -20,15 +20,15 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 1
+    cfg.exp_id = 8
     cfg.gpu_used = '7'
-    cfg.eval_batch_size = 8
+    cfg.is_debug_dataloader = True
+    cfg.eval_batch_size = 16
     # cfg.is_vis_and_exit = True
-    cfg.is_save_gif = False
-    cfg.is_exp_rm_protect = False
-    cfg.dataset_type = "test"
+    # cfg.is_save_gif = False
     # cfg.eval_visualize_save = False
     # cfg.restore_file = 'test_model_best.pth'
+    cfg.dataset_type = "test"
     cfg.restore_file = "model_latest.pth"
 
     if 'exp_id' in vars(args):
@@ -70,8 +70,9 @@ def common_config(cfg):
     ):
         print("Existing experiment, exit.")
         sys.exit()
-    if 'is_debug_dataloader' in vars(cfg) and cfg.is_debug_dataloader:
+    if 'is_debug_dataloader' in dictToObj(cfg) and cfg.is_debug_dataloader:
         cfg.num_workers = 0
+        
     return cfg
 
 

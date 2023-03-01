@@ -66,7 +66,7 @@ class HomoData(Dataset):
         img_names = img_names.split(' ')
         img1 = cv2.imread(f'{self.data_dir}/{img_names[0]}')
         img2 = cv2.imread(f'{self.data_dir}/{img_names[1]}')
-
+        # ipdb.set_trace()
         # img aug
         img1, img2, img1_patch, img2_patch, start = self.data_aug(
             img1,
