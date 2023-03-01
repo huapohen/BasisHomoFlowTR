@@ -62,19 +62,29 @@ if __name__ == '__main__':
     # ipdb.set_trace()
     id = 8 
     model_dir = '/home/data/lwb/experiments/baseshomo'
-    sv_dir = 'dataset/test'
+    sv_dir = 'dataset/test/vis'
     params = utils.Params(f'{model_dir}/exp_{id}/params.json')
     davms = DynamicAVMs(f'{model_dir}/exp_{id}/model_latest.pth', params)
-    data_dir = '/home/data/lwb/data/dybev/v7/test/generate'
-    # path1 = 'front/20221205141455_front_00006_p0010_1.jpg'
-    # path2 = 'right/20221205141455_right_00006_p0010_0.jpg'
+    data_dir = {}
+    data_dir['test'] = '/home/data/lwb/data/dybev/v7/test/generate'
+    data_dir['train'] = data_dir['test'].replace('test', 'train')
+    path = {}
+    path1 = 'front/20221205141455_front_00006_p0010_1.jpg'
+    path2 = 'right/20221205141455_right_00006_p0010_0.jpg'
+    path['fr'] = [path1, path2]
     path1 = 'right/20221205141455_right_00338_p0011_1.jpg'
     path2 = 'back/20221205141455_back_00338_p0011_1.jpg'
-    img1 = cv2.imread(os.path.join(data_dir, path1))
-    img2 = cv2.imread(os.path.join(data_dir, path2))
-    cv2.imwrite(f'{sv_dir}/img1.jpg', img1)
-    cv2.imwrite(f'{sv_dir}/img2.jpg', img2)
-    warp2, homo12 = davms.match_imgs([img1, img2])
-    cv2.imwrite(f'{sv_dir}/warp.jpg', warp2)
-    utils.create_gif([img1, img2], f'{sv_dir}/bev_ori.gif')
-    utils.create_gif([img1, warp2], f'{sv_dir}/bev_warp.gif')
+    path['rb'] = [path1, path2]
+    path1 = 'left/20221205140548_left_00296_p0000_0.jpg'
+    path2 = 'front/20221205140548_front_00296_p0000_0.jpg'
+    path['lf'] = [path1, path2]
+    for k, v in path.items():
+        mode = 'train' if k == 'lf' else 'test'
+        img1 = cv2.imread(os.path.join(data_dir[mode], path[k][0]))
+        img2 = cv2.imread(os.path.join(data_dir[mode], path[k][1]))
+        cv2.imwrite(f'{sv_dir}/{k}_img1.jpg', img1)
+        cv2.imwrite(f'{sv_dir}/{k}_img2.jpg', img2)
+        warp2, homo12 = davms.match_imgs([img1, img2])
+        cv2.imwrite(f'{sv_dir}/{k}_warp.jpg', warp2)
+        utils.create_gif([img1, img2], f'{sv_dir}/{k}_bev_ori.gif')
+        utils.create_gif([img1, warp2], f'{sv_dir}/{k}_bev_warp.gif')
