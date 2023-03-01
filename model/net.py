@@ -1,12 +1,14 @@
-from __future__ import absolute_import, division, print_function
-import numpy as np
+import cv2
+import sys
+import ipdb
 import logging
+import warnings
+import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import cv2
-import warnings
-from torch.nn.modules.utils import _pair, _quadruple
+
 from model.util import *
 from easydict import EasyDict
 
@@ -27,7 +29,6 @@ class Net(nn.Module):
         corners = np.array([[0, 0], [cw, 0], [0, ch], [cw, ch]], dtype=np.float32)
         # The buffer is the same as the Parameter except that the gradient is not update.
         self.register_buffer('corners', torch.from_numpy(corners.reshape(1, 4, 2)))
-
         self.share_feature = ShareFeature(1)
         self.conv1 = nn.Conv2d(2, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
@@ -82,48 +83,51 @@ class Net(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        x = self.conv_last(x)  # bs,8,h,w
-        y = self.pool(x).squeeze(3)  # bs,8,1,1
-
-        return y
+        x = self.conv_last(x) # bs,8,h,w
+        x = self.pool(x).reshape(-1, 4, 2)
+        return x
 
     def forward(self, input):
+        b, c, ph, pw = input['imgs_gray_patch'].shape
         
-        x1_patch, x2_patch = (
-            input['imgs_gray_patch'][:, :1, ...],
-            input['imgs_gray_patch'][:, 1:, ...],
-        )
-        x1_full, x2_full = (
-            input["imgs_gray_full"][:, :1, ...],
-            input["imgs_gray_full"][:, 1:, ...],
-        )
-
-        fea1_patch = self.share_feature(x1_patch)
-        fea2_patch = self.share_feature(x2_patch)
-
-        x = torch.cat([fea1_patch, fea2_patch], dim=1)
-        x = torch.cat([fea2_patch, fea1_patch], dim=1)
-        weight_f = self.nets_forward(x)
-        weight_b = self.nets_forward(x)
-
-        output = {}
-
-        output['offset_1'] = weight_f.reshape(-1, 4, 2)
-        output['offset_2'] = weight_b.reshape(-1, 4, 2)
-
-        output['points_2_pred'] = self.corners + output['offset_1']
-        output['points_1_pred'] = self.corners + output['offset_2']
-        homo_21 = dlt_homo(output['points_2_pred'], input['points_1'])
-        homo_12 = dlt_homo(output['points_1_pred'], input['points_2'])
-
-        batch_size, _, h_patch, w_patch = x1_patch.size()
-        bhw = (batch_size, h_patch, w_patch)
+        output = {
+            'offset': [],
+            'points_pred': [],
+            'H_flow': [],
+            "img_warp": [],
+        }
         
-        img1_warp = warp_image_from_H(homo_21, x1_full, *bhw)
-        img2_warp = warp_image_from_H(homo_12, x2_full, *bhw)
+        num_cameras = int(c / 2)
+        for i in range(num_cameras):
+        
+            x1_patch = input['imgs_gray_patch'][:, i*2:i*2+1]
+            x2_patch = input['imgs_gray_patch'][:, i*2+1:i*2+2]
+            x1_full = input["imgs_gray_full"][:, i*2:i*2+1]
+            x2_full = input["imgs_gray_full"][:, i*2+1:i*2+2]
+            
+            fea1_patch = self.share_feature(x1_patch)
+            fea2_patch = self.share_feature(x2_patch)
 
-        output['H_flow'] = [homo_21, homo_12]
-        output["img_warp"] = [img1_warp, img2_warp]
+            x = torch.cat([fea1_patch, fea2_patch], dim=1)
+            x = torch.cat([fea2_patch, fea1_patch], dim=1)
+            offset_1 = self.nets_forward(x)
+            offset_2 = self.nets_forward(x)
+
+            points_2_pred = self.corners + offset_1
+            points_1_pred = self.corners + offset_2
+            
+            points_1 = input['points_1'][:, i*2:i*2+4].contiguous()
+            points_2 = input['points_2'][:, i*2:i*2+4].contiguous()
+            homo_21 = dlt_homo(points_2_pred, points_1)
+            homo_12 = dlt_homo(points_1_pred, points_2)
+
+            img1_warp = warp_image_from_H(homo_21, x1_full, b, ph, pw)
+            img2_warp = warp_image_from_H(homo_12, x2_full, b, ph, pw)
+            
+            output['offset'].append([offset_1, offset_2])
+            output['points_pred'].append([points_1_pred, points_2_pred])
+            output['H_flow'].append([homo_21, homo_12])
+            output["img_warp"].append([img1_warp, img2_warp])
         
         return output
     

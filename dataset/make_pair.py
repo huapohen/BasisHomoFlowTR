@@ -50,8 +50,6 @@ class MakePair:
             if os.path.exists(cam_pair_path):
                 os.remove(cam_pair_path)
             fw = open(cam_pair_path, 'a+')
-            iter_max = len(self.name_list)
-            k = 0
             with tqdm(total=len(self.name_list)) as t:
                 for name in self.name_list:
                     name = name.rsplit()[0]
@@ -70,14 +68,10 @@ class MakePair:
                             + " "
                             + f'{cam2}/{name22}_{ii}.jpg'
                         )
-                        suff = '\n'
-                        if k == iter_max - 1 and i == 1:
-                            suff = ''
-                        fw.write(sample_pair + suff)
+                        fw.write(sample_pair + '\n')
                         # print(sample_pair)
                     t.set_description(desc=f'{cam1} >>> ')
                     t.update()
-                    k += 1
                     # ipdb.set_trace()
             fw.close()
 
@@ -86,9 +80,7 @@ class MakePair:
         if os.path.exists(fblr_pair_path):
             os.remove(fblr_pair_path)
         fw_all = open(fblr_pair_path, 'a+')
-        iter_max = len(self.name_list)
-        k = 0
-        with tqdm(total=iter_max) as t:
+        with tqdm(total=len(self.name_list)) as t:
             for name in self.name_list:
                 sample_pair = []
                 name = name.rsplit()[0]
@@ -104,15 +96,11 @@ class MakePair:
                 pair_str = []
                 for idx in self.pair_idx_order:
                     pair_str.append(sample_pair[idx])
-                suff = '\n'
-                if k == iter_max - 1:
-                    suff = ''
-                fw_all.write(' '.join(pair_str) + suff)
+                fw_all.write(' '.join(pair_str) + '\n')
                 # print(pair_str)
                 # ipdb.set_trace()
                 t.set_description()
                 t.update()
-                k += 1
         fw_all.close()
         
     def pert_to_ori(self):

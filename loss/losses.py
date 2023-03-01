@@ -1,6 +1,7 @@
 import os
 import sys
 import cv2
+import ipdb
 import torch
 import shutil
 import imageio
@@ -72,19 +73,20 @@ def geometricDistance_v2(inp, out, scale_x=1.0, scale_y=1.0):
 
 def compute_losses(output, input, params):
     losses = {}
-
     imgs_patch = input['imgs_gray_patch']
-
-    img1_warp, img2_warp = output["img_warp"]
-
-    im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
-    im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
-
-    photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
-    photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
-
-    losses['total'] = photo_loss_f + photo_loss_b
-
+    
+    total_loss = []
+    
+    for i, camera in enumerate(params.camera_list):
+        img1_warp, img2_warp = output["img_warp"][i]
+        im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
+        im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
+        photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
+        photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
+        losses[camera] = photo_loss_f + photo_loss_b
+        total_loss.append(losses[camera].unsqueeze(0))
+                      
+    losses['total'] = torch.cat(total_loss).mean()
 
     return losses
 
