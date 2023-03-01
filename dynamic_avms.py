@@ -60,7 +60,7 @@ class DynamicAVMs(object):
 if __name__ == '__main__':
     import ipdb
     # ipdb.set_trace()
-    id = 8
+    id = 8 
     model_dir = '/home/data/lwb/experiments/baseshomo'
     sv_dir = 'dataset/test'
     params = utils.Params(f'{model_dir}/exp_{id}/params.json')
