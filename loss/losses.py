@@ -71,21 +71,43 @@ def geometricDistance_v2(inp, out, scale_x=1.0, scale_y=1.0):
     return err_1
 
 
+def front_first_loss(output, input):
+    pass
+
+
 def compute_losses(output, input, params):
+    '''
+        1. (f0,l0), (b1,r1), (l1,b0), (r0,f1) photo_loss 正反全部计算
+        2. 以前摄像头为准: l0→f0, r0→f1, b0→l1, b1→r1
+        3. 以左摄像头为准: f0→l0, b0→l1, r0→f1, r1→b1 
+        4. 以右摄像头为准: f1→r0, b1→r1, l0→f0, l1→b0 
+        5. 以后摄像头为准: l1→b0, r1→b1, f0→l0, f1→f0 
+        6. 顺序的强调用权重系数表示
+    '''
     losses = {}
     imgs_patch = input['imgs_gray_patch']
     
     total_loss = []
+    if params.loss_type in ['basic', 'fblr_all']:
+        for i, camera in enumerate(params.camera_list):
+            img1_warp, img2_warp = output["img_warp"][i]
+            im_diff_fw = imgs_patch[:, i*2:i*2+1] - img2_warp
+            im_diff_bw = imgs_patch[:, i*2+1:i*2+2] - img1_warp
+            photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
+            photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
+            losses[camera] = photo_loss_f + photo_loss_b
+            total_loss.append(losses[camera].unsqueeze(0))
+    elif params.loss_type in ['front_first']:
+        pass
+    elif params.loss_type in ['left_first']:
+        pass
+    elif params.loss_type in ['right_first']:
+        pass
+    elif params.loss_type in ['back_first']:
+        pass
+    else:
+        raise NotImplementedError
     
-    for i, camera in enumerate(params.camera_list):
-        img1_warp, img2_warp = output["img_warp"][i]
-        im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
-        im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
-        photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
-        photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
-        losses[camera] = photo_loss_f + photo_loss_b
-        total_loss.append(losses[camera].unsqueeze(0))
-                      
     losses['total'] = torch.cat(total_loss).mean()
 
     return losses

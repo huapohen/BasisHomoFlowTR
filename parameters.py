@@ -6,8 +6,8 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 8
-    cfg.gpu_used = '0_1'
+    cfg.exp_id = 6
+    cfg.gpu_used = '0'
     cfg.train_data_ratio = 1.0
     cfg.num_workers = 8
     cfg.train_data_dir = '/home/data/lwb/data/dybev/v7'

@@ -223,7 +223,7 @@ if __name__ == '__main__':
         model = torch.nn.DataParallel(model, device_ids=device_ids)
 
     # optimizer
-    optimizer = optim.AdamW(model.parameters(), lr=params.learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
     # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.995)
 
