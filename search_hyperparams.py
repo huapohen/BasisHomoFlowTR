@@ -103,9 +103,9 @@ def launch_training_job(
             f'\t `Ctrl + D`: end the current subwindow \n'
             f'\t `Ctrl + B D`: exit the window and keep the taks running\n'
         )
-        time.sleep(10)
-        check_call(f'tmux ls', shell=True)
         time.sleep(5)
+        check_call(f'tmux ls', shell=True)
+        time.sleep(3)
         check_call(f'tmux attach -t {start_id}', shell=True)
 
 
@@ -121,24 +121,21 @@ def experiment():
     default_params = utils.Params(json_path)
 
     exp_name = 'baseshomo'
-    exp_start_id = 9
+    exp_start_id = 8
     session_name = str(exp_start_id)  # tmux session name, need pre-create
     param_pool_dict = collections.OrderedDict()
     device_used = collections.OrderedDict()
     device_used = ['4', '5', '6', '7']
-    param_pool_dict["train_batch_size"] = [8]
-    param_pool_dict["eval_batch_size"] = [8]
+    param_pool_dict["train_batch_size"] = [16]
+    param_pool_dict["eval_batch_size"] = [16]
     param_pool_dict["num_workers"] = [8]
-    param_pool_dict['train_data_ratio'] = [0.1]
-    param_pool_dict['is_dybev'] = [True]
-    param_pool_dict['train_data_dir'] = ['/home/data/lwb/data/dybev/v6']
-    param_pool_dict['camera_list'] = [
-        ['front'],
-        ['back'],
-        ['left'],
-        ['right'],
-    ]
-    param_pool_dict['exp_description'] = ['']
+    param_pool_dict['train_data_ratio'] = [1.0]
+    param_pool_dict['train_data_dir'] = ['/home/data/lwb/data/dybev/v9']
+    param_pool_dict['loss_type'] = ['front_first', 'back_first', 
+                                    'left_first', 'right_first']
+    param_pool_dict['exp_description'] = [
+        f'exp_8-11: dataset v9, loss_type = [f, b, l, r]'
+        ]
 
     # '0', '1', '2', '3', '4', '5', '6', '7'
     # device_used = ['6']

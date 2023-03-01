@@ -6,13 +6,14 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 6
+    cfg.exp_id = 13
     cfg.gpu_used = '0'
     cfg.train_data_ratio = 1.0
     cfg.num_workers = 0
     cfg.train_data_dir = '/home/data/lwb/data/dybev/v7'
     cfg.test_data_dir = cfg.train_data_dir
-    cfg.exp_description = ''' fblr cameras: simultaneously update the gradient '''
+    cfg.exp_description = f' exp_{cfg.exp_id}: '
+    cfg.exp_description += ' v9, front fist '
     cfg = continue_train(cfg)
     # cfg.gpu_used = '0_1_2_3_4_5_6_7' # use 8 GPUs
     return cfg
