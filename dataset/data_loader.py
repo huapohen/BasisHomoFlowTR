@@ -29,10 +29,7 @@ class HomoTrainData(Dataset):
         total_sample = len(self.data_all)
         num = int(total_sample * params.train_data_ratio)
         self.data_infor = self.data_all[:num]
-        if params.is_test_last_10_percent:
-            num = int(total_sample * 0.1)
-            self.data_infor = self.data_all[(total_sample - num) :]
-        self.data_dir = params.train_data_dir + '/Train/'
+        self.data_dir = params.train_data_dir + '/train/'
 
         self.seed = 0
         random.seed(self.seed)
@@ -56,9 +53,6 @@ class HomoTrainData(Dataset):
         img_names = img_names.split(' ')
         img1 = cv2.imread(f'{self.data_dir}/{img_names[0]}')
         img2 = cv2.imread(f'{self.data_dir}/{img_names[1][:-1]}')
-        if self.params.is_test_assigned_img:
-            img1 = cv2.imread('dataset/test/10467_A.jpg')
-            img2 = cv2.imread('dataset/test/10467_B.jpg')
 
         img1_full = torch.tensor(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
         img2_full = torch.tensor(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))

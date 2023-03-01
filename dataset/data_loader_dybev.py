@@ -38,18 +38,16 @@ class HomoTrainData(Dataset):
             self.data_all += open(path, 'r').readlines()
         total_sample = len(self.data_all)
 
-        self.seed = 0
-        random.seed(self.seed)
+        random.seed(params.seed)
+        np.random.seed(params.seed)
         random.shuffle(self.data_all)
 
         num = int(total_sample * params.train_data_ratio)
         self.data_infor = self.data_all[:num]
-        if params.is_test_last_10_percent:
-            num = int(total_sample * 0.1)
-            self.data_infor = self.data_all[(total_sample - num) :]
 
         self.sample_number = {}
-        self.sample_number['v6'] = {
+        set_name = params.train_data_dir.split(os.sep)[-1]
+        self.sample_number[set_name] = {
             'ratio': params.train_data_ratio,
             "samples": len(self.data_infor),
         }
@@ -67,9 +65,6 @@ class HomoTrainData(Dataset):
         img_names = img_names.split(' ')
         img1 = cv2.imread(f'{self.data_dir}/{img_names[0]}')
         img2 = cv2.imread(f'{self.data_dir}/{img_names[1][:-1]}')
-        if self.params.is_test_assigned_img:
-            img1 = cv2.imread('dataset/test/10467_A.jpg')
-            img2 = cv2.imread('dataset/test/10467_B.jpg')
 
         img1_full = torch.tensor(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
         img2_full = torch.tensor(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))
