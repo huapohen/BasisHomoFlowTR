@@ -52,6 +52,7 @@ class HomoTrainData(Dataset):
             "samples": len(self.data_infor),
         }
         self.sample_number["total_samples"] = len(self.data_infor)
+        # ipdb.set_trace()
 
     def __len__(self):
         # return size of dataset
