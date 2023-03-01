@@ -60,20 +60,21 @@ class DynamicAVMs(object):
 if __name__ == '__main__':
     import ipdb
     # ipdb.set_trace()
-    id = 9
-    id = 11
-    params = utils.Params(f'experiments/baseshomo/exp_{id}/params.json')
-    davms = DynamicAVMs(f'experiments/baseshomo/exp_{id}/model_latest.pth', params)
-    data_dir = '/home/data/lwb/data/dybev/v6/test/generate'
+    id = 8
+    model_dir = '/home/data/lwb/experiments/baseshomo'
+    sv_dir = 'dataset/test'
+    params = utils.Params(f'{model_dir}/exp_{id}/params.json')
+    davms = DynamicAVMs(f'{model_dir}/exp_{id}/model_latest.pth', params)
+    data_dir = '/home/data/lwb/data/dybev/v7/test/generate'
     # path1 = 'front/20221205141455_front_00006_p0010_1.jpg'
     # path2 = 'right/20221205141455_right_00006_p0010_0.jpg'
     path1 = 'right/20221205141455_right_00338_p0011_1.jpg'
     path2 = 'back/20221205141455_back_00338_p0011_1.jpg'
     img1 = cv2.imread(os.path.join(data_dir, path1))
     img2 = cv2.imread(os.path.join(data_dir, path2))
-    cv2.imwrite('dataset/test/img1.jpg', img1)
-    cv2.imwrite('dataset/test/img2.jpg', img2)
+    cv2.imwrite(f'{sv_dir}/img1.jpg', img1)
+    cv2.imwrite(f'{sv_dir}/img2.jpg', img2)
     warp2, homo12 = davms.match_imgs([img1, img2])
-    cv2.imwrite('dataset/test/warp.jpg', warp2)
-    utils.create_gif([img1, img2], 'dataset/test/bev_ori.gif')
-    utils.create_gif([img1, warp2], 'dataset/test/bev_warp.gif')
+    cv2.imwrite(f'{sv_dir}/warp.jpg', warp2)
+    utils.create_gif([img1, img2], f'{sv_dir}/bev_ori.gif')
+    utils.create_gif([img1, warp2], f'{sv_dir}/bev_warp.gif')
