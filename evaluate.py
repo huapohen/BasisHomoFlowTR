@@ -235,7 +235,7 @@ def run_all_exps(exp_id):
         cfg = get_config(args, mode='test')
         dic_params = json.loads(json.dumps(cfg))
         obj_params = dictToObj(dic_params)
-        params_default_path = os.path.join(obj_params.exp_root_dir, 'params.json')
+        params_default_path = os.path.join(obj_params.exp_current_dir, 'params.json')
         model_json_path = os.path.join(obj_params.model_dir, "params.json")
         assert os.path.isfile(
             model_json_path

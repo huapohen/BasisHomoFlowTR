@@ -17,13 +17,17 @@ from experiment_dispatcher import dispatcher, tmux
 PYTHON = sys.executable
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    '--exp_root_dir',
-    default='experiments',
+    '--exp_current_dir', default='experiments',
+    help='Directory containing params.json',
+)
+parser.add_argument(
+    '--exp_root_dir', default='/home/data/lwb/experiments',
     help='Directory containing params.json',
 )
 
 
 def launch_training_job(
+    exp_current_dir,
     exp_root_dir,
     exp_name,
     session_name,
@@ -70,6 +74,7 @@ def launch_training_job(
         cmd = (
             'python train.py '
             f'--gpu_used {device_id} '
+            f'--exp_current_dir {exp_current_dir} '
             f'--exp_root_dir {exp_root_dir} '
             f'--model_dir {model_dir} '
             f'--exp_name {exp_name} '
@@ -108,11 +113,12 @@ def experiment():
     # Load the "reference" parameters from experiment_dir json file
     args = parser.parse_args()
     exp_root_dir = args.exp_root_dir
-    json_path = os.path.join(exp_root_dir, 'params.json')
+    exp_current_dir = args.exp_current_dir
+    json_path = os.path.join(exp_current_dir, 'params.json')
     assert os.path.isfile(json_path), "No json configuration file found at {}".format(
         json_path
     )
-    params = utils.Params(json_path)
+    default_params = utils.Params(json_path)
 
     exp_name = 'baseshomo'
     exp_start_id = 9
@@ -160,12 +166,13 @@ def experiment():
             pass
 
     launch_training_job(
+        exp_current_dir,
         exp_root_dir,
         exp_name,
         session_name,
         param_pool_dict,
         device_used,
-        params,
+        default_params,
         exp_start_id,
     )
 

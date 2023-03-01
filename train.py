@@ -31,6 +31,9 @@ torch.backends.cuda.matmul.allow_tf32 = False
 parser = argparse.ArgumentParser()
 parser.add_argument("--params_path", type=str, default=None, help="params file")
 parser.add_argument(
+    "--exp_current_dir", type=str, default=None, help="parent dir of experiments"
+)
+parser.add_argument(
     "--exp_root_dir", type=str, default=None, help="parent dir of experiments"
 )
 parser.add_argument(
@@ -150,11 +153,11 @@ if __name__ == '__main__':
         cfg = get_config(args, mode='train')
         dic_params = json.loads(json.dumps(cfg))
         obj_params = dictToObj(dic_params)
-        default_json_path = os.path.join(cfg.exp_root_dir, "params.json")
+        default_json_path = os.path.join(cfg.exp_current_dir, "params.json")
         params = utils.Params(default_json_path)
         params.update(obj_params)
         file_name = f"{params.exp_name}_exp_{params.exp_id}.json"
-        params.extra_config_json_dir = os.path.join(cfg.exp_root_dir, 'config')
+        params.extra_config_json_dir = os.path.join(cfg.exp_current_dir, 'config')
         params.exp_json_path1 = os.path.join(params.model_dir, "params.json")
         params.exp_json_path2 = os.path.join(params.extra_config_json_dir, file_name)
         # resume

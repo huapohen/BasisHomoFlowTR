@@ -58,9 +58,10 @@ def common_config(cfg):
         cfg.data_dir = ""
     if not os.path.exists(cfg.data_dir):
         raise ValueError
-    cfg.exp_root_dir = 'experiments'
+    cfg.exp_root_dir = '/home/data/lwb/experiments'
+    cfg.exp_current_dir = 'experiments'
     cfg.exp_name = 'baseshomo'
-    cfg.extra_config_json_dir = os.path.join(cfg.exp_root_dir, 'config')
+    cfg.extra_config_json_dir = os.path.join(cfg.exp_current_dir, 'config')
     exp_dir = os.path.join(cfg.exp_root_dir, cfg.exp_name)
     cfg.model_dir = os.path.join(exp_dir, f"exp_{cfg.exp_id}")
     cfg.tb_path = os.path.join(exp_dir, 'tf_log', f'exp_{cfg.exp_id}')

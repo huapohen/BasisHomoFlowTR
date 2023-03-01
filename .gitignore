@@ -41,3 +41,6 @@ experiments/*
 # !experiments/config/
 !experiments/params.json
 git*
+dataset/Coordinate-v2
+dataset/*.txt
+dataset/avm
