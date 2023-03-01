@@ -11,7 +11,7 @@ class MakePair:
     '''same frame version'''
 
     def __init__(self, mode='train', source='generate'):
-        version = 'v7'
+        version = 'v9'
         base_path = f'/home/data/lwb/data/dybev/{version}'
         src_path = f'{base_path}/{mode}/{source}'
         self.mode = mode

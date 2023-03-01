@@ -18,8 +18,8 @@ except:
 class DataMakerOverlap:
     def __init__(self, mode='train', source='bev'):
         self.data_root_dir = '/home/data/lwb/data/dybev'
-        self.src_data_dir = self.data_root_dir + f'/v4/{mode}'
-        self.tgt_data_dir = self.data_root_dir + f'/v6/{mode}'
+        self.src_data_dir = self.data_root_dir + f'/v8/{mode}'
+        self.tgt_data_dir = self.data_root_dir + f'/v9/{mode}'
         self.src_bev_dir = os.path.join(self.src_data_dir, source)
         self.tgt_bev_dir = os.path.join(self.tgt_data_dir, source)
         self.name_list = sorted(os.listdir(self.src_bev_dir + '/front'))

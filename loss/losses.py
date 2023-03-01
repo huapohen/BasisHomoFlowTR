@@ -86,7 +86,7 @@ def compute_losses(output, input, params):
     '''
     losses = {}
     imgs_patch = input['imgs_gray_patch']
-    
+    losses['total'] = 0
     total_loss = []
     if params.loss_type in ['basic', 'fblr_all']:
         for i, camera in enumerate(params.camera_list):
