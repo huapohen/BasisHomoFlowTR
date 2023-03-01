@@ -138,17 +138,7 @@ def experiment():
         ['left'],
         ['right'],
     ]
-    param_pool_dict['exp_description'] = [
-        '''
-        exp_9-12:
-        param_pool_dict['camera_list'] = [
-            ['front'],
-            ['back'],
-            ['left'],
-            ['right'],
-        ] 
-        '''
-    ]
+    param_pool_dict['exp_description'] = ['']
 
     # '0', '1', '2', '3', '4', '5', '6', '7'
     # device_used = ['6']

@@ -51,24 +51,6 @@
     "loss_func_type": "photo",
     "is_exp_rm_protect": false,
     "is_continue_train": false,
-    "wh_bev_fblr": {
-        "front": [
-            1078,
-            336
-        ],
-        "back": [
-            1078,
-            336
-        ],
-        "left": [
-            1172,
-            439
-        ],
-        "right": [
-            1172,
-            439
-        ]
-    },
     "data_source_type": "generate",
     "camera_list": [
         "front",
@@ -76,10 +58,11 @@
         "left",
         "right"
     ],
+    "rho_dybev": 8,
     "crop_size_dybev": [
-        256,
-        256
+        288,
+        288
     ],
-    "is_dybev": false,
+    "is_dybev": true,
     "is_debug_dataloader": false
 }

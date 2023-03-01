@@ -8,16 +8,11 @@ from yacs.config import CfgNode as CN
 def train_config(cfg):
     cfg.exp_id = 8
     cfg.gpu_used = '5'
-    cfg.is_add_lrr_module = True
-    cfg.loss_func_type = 'all'
     cfg.train_data_ratio = 0.1
     # cfg.is_vis_and_exit = True
-    cfg.is_dybev = True
-    # cfg.camera_list = ['right']
-    # cfg.camera_list = ['front', 'back', 'left', 'right']
     cfg.train_data_dir = '/home/data/lwb/data/dybev/v7'
     cfg.test_data_dir = cfg.train_data_dir
-    cfg.exp_description = ''' bev '''
+    cfg.exp_description = ''' fblr '''
     cfg = continue_train(cfg)
     # cfg.gpu_used = '0_1_2_3_4_5_6_7' # use 8 GPUs
     return cfg

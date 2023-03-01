@@ -13,15 +13,15 @@ from torch.utils.data import DataLoader, Dataset
 _logger = logging.getLogger(__name__)
 
 
-class HomoTrainData(Dataset):
-    def __init__(self, params):
+class HomoData(Dataset):
+    def __init__(self, params, mode='train'):
         self.params = params
 
         self.mean_I = np.array([118.93, 113.97, 102.60]).reshape(1, 1, 3)
         self.std_I = np.array([69.85, 68.81, 72.45]).reshape(1, 1, 3)
         self.crop_size = params.crop_size_dybev
 
-        self.rho = params.rho
+        self.rho = params.rho_dybev
         self.normalize = True
         self.horizontal_flip_aug = True
         txt_list = []
@@ -31,7 +31,7 @@ class HomoTrainData(Dataset):
         else:
             for cam in params.camera_list:
                 txt_list.append(cam + suffix)
-        self.data_dir = params.train_data_dir + '/train/' + params.data_source_type
+        self.data_dir = params.train_data_dir + f'/{mode}/' + params.data_source_type
         self.data_all = []
         for txt_name in txt_list:
             path = self.data_dir + '/pair/' + txt_name
@@ -65,8 +65,8 @@ class HomoTrainData(Dataset):
         img_names = self.data_infor[idx]
         img_names = img_names.split(' ')
         img1 = cv2.imread(f'{self.data_dir}/{img_names[0]}')
-        img2 = cv2.imread(f'{self.data_dir}/{img_names[1][:-1]}')
-
+        img2 = cv2.imread(f'{self.data_dir}/{img_names[1]}')
+        # ipdb.set_trace()
         img1_full = torch.tensor(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
         img2_full = torch.tensor(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))
         img1_full = img1_full.unsqueeze(0).float()
@@ -103,8 +103,8 @@ class HomoTrainData(Dataset):
         data_dict = {}
         data_dict['img1_full'] = img1_full
         data_dict['img2_full'] = img2_full
-        data_dict['img1_full_rgb'] = img1_full_rgb
-        data_dict['img2_full_rgb'] = img2_full_rgb
+        # data_dict['img1_full_rgb'] = img1_full_rgb
+        # data_dict['img2_full_rgb'] = img2_full_rgb
         data_dict["imgs_gray_full"] = imgs_gray_full
         data_dict["imgs_gray_patch"] = imgs_gray_patch
         data_dict["start"] = start
@@ -311,7 +311,7 @@ def fetch_dataloader(params):
 
     # add train data loader
     if params.dataset_type in ['basic', 'train']:
-        train_ds = HomoTrainData(params)
+        train_ds = HomoData(params, 'train')
         dl = DataLoader(
             train_ds,
             batch_size=params.train_batch_size,
@@ -326,7 +326,8 @@ def fetch_dataloader(params):
 
     # chose test data loader for evaluate
     if params.eval_type in ['val', 'test']:
-        test_ds = HomoTestData(params)
+        # test_ds = HomoTestData(params)
+        test_ds = HomoData(params, 'test')
         dl = DataLoader(
             test_ds,
             batch_size=params.eval_batch_size,
