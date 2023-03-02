@@ -6,14 +6,15 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 13
-    cfg.gpu_used = '0'
+    cfg.exp_id = 7
+    cfg.gpu_used = '1'
     cfg.train_data_ratio = 1.0
-    cfg.num_workers = 0
-    cfg.train_data_dir = '/home/data/lwb/data/dybev/v7'
+    cfg.num_workers = 8
+    cfg.train_data_dir = '/home/data/lwb/data/dybev/v9'
     cfg.test_data_dir = cfg.train_data_dir
-    cfg.exp_description = f' exp_{cfg.exp_id}: '
-    cfg.exp_description += ' v9, front fist '
+    # cfg.exp_description = f' exp_{cfg.exp_id}: '
+    # cfg.exp_description += ' v9, front fist '
+    cfg.exp_description = 'exp_6-7: dataset: [v7, v9], loss_type = all_fblr'
     cfg = continue_train(cfg)
     # cfg.gpu_used = '0_1_2_3_4_5_6_7' # use 8 GPUs
     return cfg

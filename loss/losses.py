@@ -122,10 +122,10 @@ def compute_losses(output, input, params):
         camera_loss.append(total_loss[i])
     
     for i in range(4):
-        if len(idx_seq) == 8:
-            losses[camera] = camera_loss[i*2] + camera_loss[i*2+1]
-        else:
-            losses[camera] = camera_loss[i]
+        cam_loss = camera_loss[i]
+        if len(idx_seq) == 8
+            cam_loss = camera_loss[i*2] + camera_loss[i*2+1]
+        losses[params.camera_list[i]] = cam_loss
             
     if len(idx_seq) == 4:
         coef = [0.35, 0.35, 0.15, 0.15]
