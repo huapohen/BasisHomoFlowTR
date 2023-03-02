@@ -126,7 +126,8 @@ def compute_losses(output, input, params):
         if len(idx_seq) == 8
             cam_loss = camera_loss[i*2] + camera_loss[i*2+1]
         losses[params.camera_list[i]] = cam_loss
-            
+        
+    # loss系数设置
     if len(idx_seq) == 4:
         coef = [0.35, 0.35, 0.15, 0.15]
     else:
