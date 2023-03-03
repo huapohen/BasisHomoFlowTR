@@ -119,8 +119,9 @@ class Net(nn.Module):
         output = {}
 
         if self.params.model_version == 'basis':
-            H_flow_f = (self.basis * weight_f).sum(1).reshape(batch_size, 2, h_patch, w_patch)
-            H_flow_b = (self.basis * weight_b).sum(1).reshape(batch_size, 2, h_patch, w_patch)
+            bchw = [batch_size, 2, h_patch, w_patch]
+            H_flow_f = (self.basis * weight_f).sum(1).reshape(*bchw)
+            H_flow_b = (self.basis * weight_b).sum(1).reshape(*bchw)
             img1_warp = get_warp_flow(x1_full, H_flow_b, start=input['start'])
             img2_warp = get_warp_flow(x2_full, H_flow_f, start=input['start'])
             output['H_flow'] = [H_flow_f, H_flow_b]
@@ -135,7 +136,7 @@ class Net(nn.Module):
             img2_warp = warp_image_from_H(homo_12, x2_full, *bhw)
             output['H_flow'] = [homo_21, homo_12]
         else:
-            raise        
+            raise
 
         fea1_patch_warp = self.share_feature(img1_warp)
         fea2_patch_warp = self.share_feature(img2_warp)
@@ -174,7 +175,7 @@ def util_test_net_forward():
     pts = [[px, py], [px + pw, py], [px, py + ph], [px + pw, py + ph]]
     pts_1 = torch.from_numpy(np.array(pts)[np.newaxis]).float()
     pts_2 = torch.from_numpy(np.array(pts)[np.newaxis]).float()
-    ipdb.set_trace()
+    # ipdb.set_trace()
     img = cv2.imread('dataset/test/10467_A.jpg', 0)
     img_patch = img[py : py + ph, px : px + pw]
 
