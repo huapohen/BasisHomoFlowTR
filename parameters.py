@@ -6,13 +6,14 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 10
-    cfg.gpu_used = '2'
+    cfg.exp_id = 20
+    cfg.gpu_used = '0'
     cfg.num_workers = 8
-    # cfg.train_batch_size = 1
     cfg.train_data_ratio = 0.1
-    # cfg.is_vis_and_exit = True
-    cfg.exp_description = 'Adam -> AdamW'
+    cfg.is_add_lrr_module = True
+    cfg.loss_func_type = 'origin'
+    cfg.model_version = 'basis'
+    cfg.exp_description = 'basis version'
     cfg = continue_train(cfg)
     # cfg.gpu_used = '0_1_2_3_4_5_6_7' # use 8 GPUs
     return cfg
@@ -20,13 +21,12 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 1
-    cfg.gpu_used = '1'
-    cfg.eval_batch_size = 8
-    # cfg.is_vis_and_exit = True
-    cfg.is_exp_rm_protect = False
+    cfg.exp_id = 21
+    cfg.gpu_used = '0'
+    cfg.eval_batch_size = 16
+    cfg.loss_func_type = 'origin'
     cfg.dataset_type = "test"
-    # cfg.eval_visualize_save = False
+    cfg.save_iteration = 10000
     # cfg.restore_file = 'test_model_best.pth'
     cfg.restore_file = "model_latest.pth"
 

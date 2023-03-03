@@ -142,21 +142,11 @@ class Manager:
         exp_name = self.params.model_dir.split('/')[-1]
         exp_id = self.params.exp_id
         # get_last_lr() for pytorch version>=1.4.0, otherwise get_lr()
-        print_str = "exp_{} Epoch: {:4d}, lr={:.4f} ".format(
+        print_str = "exp_{} Epoch: {:4d}, lr={:.6f} ".format(
             exp_id, self.epoch, self.scheduler.get_last_lr()[0]
         )
-        print_str += "total loss: %.4f(%.4f) " % (
-            self.loss_status['total'].val,
-            self.loss_status['total'].avg,
-        )
-        print_str += "photo: %.4f(%.4f) " % (
-            self.loss_status['photo_loss_l1'].val,
-            self.loss_status['photo_loss_l1'].avg,
-        )
-        print_str += "feature: %.4f(%.4f)" % (
-            self.loss_status['fea_loss_l1'].val,
-            self.loss_status['fea_loss_l1'].avg,
-        )
+        for k, v in self.loss_status.items():
+            print_str += "%s: %.4f(%.4f) " % (k, v.val, v.avg)
 
         return print_str
 

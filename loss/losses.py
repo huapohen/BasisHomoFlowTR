@@ -6,7 +6,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from model import net
-from model.util import warp_image_from_H
+from model.util import *
 from torchvision.utils import save_image
 
 
@@ -68,47 +68,31 @@ def geometricDistance_v2(inp, out, scale_x=1.0, scale_y=1.0):
     return err_1
 
 
-def vis_save_image_and_exit(output, input):
-    svd = 'experiments/tmp'
-    os.makedirs(svd, exist_ok=True)
-    shutil.rmtree(svd)
-    os.makedirs(svd)
-    imgs_patch = input['imgs_gray_patch']
-    img1_warp, img2_warp = output["img_warp"]
-    im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
-    im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
-    img_full_diff = input['img1_full'] - input['img2_full']
-    img_full_rgb_diff = input['img1_full_rgb'] - input['img2_full_rgb']
-    save_image(output["img_warp"][0], f'{svd}/img1_warp.jpg')
-    save_image(output["img_warp"][1], f'{svd}/img2_warp.jpg')
-    save_image(imgs_patch[:, :1, ...], f'{svd}/img1_patch.jpg')
-    save_image(imgs_patch[:, 1:, ...], f'{svd}/img2_patch.jpg')
-    save_image(im_diff_fw, f'{svd}/im_diff_fw.jpg')
-    save_image(im_diff_bw, f'{svd}/im_diff_bw.jpg')
-    save_image(input['imgs_gray_full'], f'{svd}/imgs_gray_full.png')
-    save_image(output['fea_full'][0], f'{svd}/fea_full1.jpg')
-    save_image(output['fea_full'][1], f'{svd}/fea_full2.jpg')
-    save_image(img_full_diff, f'{svd}/img_full_diff.jpg')
-    save_image(img_full_rgb_diff, f'{svd}/img_full_rgb_diff.jpg')
-    save_image(input['img1_full_rgb'] / 255.0, f'{svd}/img1_full_rgb.jpg')
-    save_image(input['img2_full_rgb'] / 255.0, f'{svd}/img2_full_rgb.jpg')
-    save_image(output['img1_warp_rgb'] / 255.0, f'{svd}/img1_warp_rgb.jpg')
-    save_image(output['img2_warp_rgb'] / 255.0, f'{svd}/img2_warp_rgb.jpg')
-
-    sys.exit()
-
-
 def compute_losses(output, input, params):
-    losses = {}
+    losses = {'total': 0}
 
     # compute losses
     if params.loss_type == "basic":
         imgs_patch = input['imgs_gray_patch']
-
+        start = input['start']
+        
+        fea1_full, fea2_full = output["fea_full"]
         fea1_patch, fea2_patch = output["fea_patch"]
         img1_warp, img2_warp = output["img_warp"]
-        fea1_warp, fea2_warp = output['fea_warp']
         fea1_patch_warp, fea2_patch_warp = output["fea_patch_warp"]
+        
+        if params.model_version == 'basis':
+            H_flow_f, H_flow_b = output['H_flow']
+            fea2_warp = get_warp_flow(fea2_full, H_flow_f, start=start)
+            fea1_warp = get_warp_flow(fea1_full, H_flow_b, start=start)
+        elif params.model_version == 'offset':
+            batch_size, _, h_patch, w_patch = imgs_patch.shape
+            bhw = (batch_size, h_patch, w_patch)
+            homo_21, homo_12 = output['H_flow']
+            fea1_warp = warp_image_from_H(homo_21, fea1_full, *bhw)
+            fea2_warp = warp_image_from_H(homo_12, fea2_full, *bhw)
+        else:
+            raise
 
         im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
         im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
@@ -130,43 +114,65 @@ def compute_losses(output, input, params):
             + triplet_loss(fea2_patch, fea1_warp, fea1_patch).mean()
         )
 
-        if 'is_vis_and_exit' in vars(params) and params.is_vis_and_exit:
-            vis_save_image_and_exit(output, input)
-
-        feature_loss = (
-            losses["triplet_loss"] + params.weight_fil * losses["fea_loss_l1"]
-        )
-        photo_loss = losses["photo_loss_l1"]
+        photo = losses["photo_loss_l1"]
+        feature = params.weight_fil * losses["fea_loss_l1"]
+        triplet = losses["triplet_loss"]
+        
         if params.loss_func_type == 'feature':
-            losses['total'] = feature_loss
+            losses['total'] = feature
+        elif params.loss_func_type == 'triplet':
+            losses['total'] = triplet
         elif params.loss_func_type == 'photo':
-            losses['total'] = photo_loss
+            losses['total'] = photo
         elif params.loss_func_type == 'all':
-            losses["total"] = feature_loss + photo_loss
+            losses["total"] = feature + triplet + photo
+        elif params.loss_func_type == 'origin':
+            losses["total"] = feature + triplet
     else:
         raise NotImplementedError
 
     return losses
 
 
-def compute_eval_results(data_batch, output_batch, manager):
-
+def compute_eval_results(data_batch, output_batch, params):
     imgs_full = data_batch["imgs_ori"]
+    H_flow_f, H_flow_b = output_batch['H_flow']
     batch_size, _, grid_h, grid_w = imgs_full.shape
-
     bhw = (batch_size, grid_h, grid_w)
-    homo_21, homo_12 = output_batch['H_flow']
+    
+    errs, errs_p = [], []
 
-    # img1 warp to img2, img2_pred = img1_warp
-    img1_full_warp = warp_image_from_H(homo_21, imgs_full[:, :3, ...], *bhw)
-    img2_full_warp = warp_image_from_H(homo_12, imgs_full[:, 3:, ...], *bhw)
+    if params.model_version == 'basis':
+        H_flow_f = upsample2d_flow_as(H_flow_f, imgs_full, mode="bilinear", if_rate=True)
+        H_flow_b = upsample2d_flow_as(H_flow_b, imgs_full, mode="bilinear", if_rate=True)
+        img1_full_warp = get_warp_flow(imgs_full[:, :3, ...], H_flow_b, start=0)
+        # calc err
+        points = data_batch["points"]
+        for i in range(len(points)):  # len(points)
+            point = eval(points[i])
+            err = 0
+            tmp = []
+            for j in range(6):  # len(point['matche_pts'])
+                points_value = point['matche_pts'][j]
+                err_p = geometricDistance(points_value, H_flow_f[i])
+                err += err_p
+                tmp.append(err_p)
+            errs.append(err / (j + 1))
+            errs_p.append(tmp)
 
-    scale_x = grid_w / float(data_batch['imgs_gray_full'].shape[3])
-    scale_y = grid_h / float(data_batch['imgs_gray_full'].shape[2])
-    errs = geometricDistance_v2(data_batch, output_batch, scale_x, scale_y)
+    elif params.model_version == 'offset':
+        img1_full_warp = warp_image_from_H(H_flow_b, imgs_full[:, :3, ...], *bhw)
+        # calc err
+        scale_x = grid_w / float(data_batch['imgs_gray_full'].shape[3])
+        scale_y = grid_h / float(data_batch['imgs_gray_full'].shape[2])
+        errs = geometricDistance_v2(data_batch, output_batch, scale_x, scale_y)
+    else:
+        raise
+    
 
     eval_results = {}
     eval_results["img1_full_warp"] = img1_full_warp
     eval_results["errs"] = errs
+    eval_results["errs_p"] = errs_p
 
     return eval_results

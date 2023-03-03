@@ -116,12 +116,16 @@ def train(model, manager):
 def train_and_evaluate(model, manager):
 
     for epoch in range(manager.params.num_epochs):
+        manager.params.current_epoch = epoch
 
         # compute number of batches in one epoch (one full pass over the training set)
         train(model, manager)
 
         # Save latest model, or best model weights accroding to the params.major_metric
         manager.check_best_save_last_checkpoints(latest_freq_val=999, latest_freq=1)
+        
+        if epoch % manager.params.eval_freq == 0:
+            evaluate(model, manager)
 
 
 if __name__ == '__main__':
@@ -207,17 +211,15 @@ if __name__ == '__main__':
     dataloaders = data_loader.fetch_dataloader(params)
 
     # Define the model and optimizer
+    model = net.fetch_net(params)
     if params.cuda:
-        model = net.fetch_net(params).cuda()
-        optimizer = optim.AdamW(model.parameters(), lr=params.learning_rate)
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
+        model = model.cuda()
         gpu_num = len(params.gpu_used.split(","))
         device_ids = range(gpu_num)
         model = torch.nn.DataParallel(model, device_ids=device_ids)
-    else:
-        model = net.fetch_net(params)
-        optimizer = optim.AdamW(model.parameters(), lr=params.learning_rate)
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
+        
+    optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
 
     # initial status for checkpoint manager
     manager = Manager(

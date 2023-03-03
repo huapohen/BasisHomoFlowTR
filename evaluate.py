@@ -22,6 +22,9 @@ from common.manager import Manager
 from parameters import get_config, dictToObj
 from easydict import EasyDict
 
+''' add this line, because GTX30 serials' default torch.matmul() on cuda is uncorrected '''
+torch.backends.cuda.matmul.allow_tf32 = False
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -131,8 +134,7 @@ def evaluate(model, manager):
                         save_name = npy_name[j] + "_" + str(err_avg[j])
                         eval_save_result(save_file, save_name, manager, k)
 
-                # t.set_description(f"{k}:{err_avg.mean():.4f}")
-                t.set_description()
+                t.set_description(f"{k}:{np.mean(err_avg):.4f}")
                 t.update()
 
         MSE_RE_avg = sum(MSE_RE) / len(MSE_RE)
@@ -156,9 +158,9 @@ def evaluate(model, manager):
 
         # update data to logger
         manager.logger.info(
-            "Loss/valid epoch_{} {}: {:.2f}. RE:{:.4f} LT:{:.4f} LL:{:.4f} SF:{:.4f} LF:{:.4f} ".format(
+            "Loss/valid epoch_{} {}: {:.4f}. RE:{:.4f} LT:{:.4f} LL:{:.4f} SF:{:.4f} LF:{:.4f} ".format(
                 manager.params.eval_type,
-                manager.epoch_val,
+                manager.params.current_epoch,
                 MSE_avg,
                 MSE_RE_avg,
                 MSE_LT_avg,

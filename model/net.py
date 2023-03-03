@@ -1,12 +1,8 @@
-from __future__ import absolute_import, division, print_function
-import numpy as np
-import logging
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import cv2
+import torch
 import warnings
-from torch.nn.modules.utils import _pair, _quadruple
+import numpy as np
+import torch.nn as nn
 from model.util import *
 from easydict import EasyDict
 
@@ -27,7 +23,7 @@ class Net(nn.Module):
         corners = np.array([[0, 0], [cw, 0], [0, ch], [cw, ch]], dtype=np.float32)
         # The buffer is the same as the Parameter except that the gradient is not updated.
         self.register_buffer('corners', torch.from_numpy(corners.reshape(1, 4, 2)))
-
+        self.basis = gen_basis(ch, cw).unsqueeze(0).reshape(1, 8, -1)
         self.share_feature = ShareFeature(1)
         self.conv1 = nn.Conv2d(2, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
@@ -41,7 +37,9 @@ class Net(nn.Module):
         if self.params.is_add_lrr_module:
             self.sp_layer3 = Subspace(256)
             self.sp_layer4 = Subspace(512)
-
+        print(f'model_version: {params.model_version}')
+        print(f'is_add_lrr_module: {params.is_add_lrr_module}')
+        print(f'loss_func_type: {params.loss_func_type}')
         self.conv_last = nn.Conv2d(
             512, 8, kernel_size=1, stride=1, padding=0, groups=8, bias=False
         )
@@ -106,52 +104,43 @@ class Net(nn.Module):
         )
 
         # net forward
-        batch_size, _, h_patch, w_patch = x1_patch.size()
-
         fea1_patch, fea2_patch = self.share_feature(x1_patch), self.share_feature(
             x2_patch
         )
 
-        x = torch.cat([fea1_patch, fea2_patch], dim=1)
-        weight_f = self.nets_forward(x)
-
-        x = torch.cat([fea2_patch, fea1_patch], dim=1)
-        weight_b = self.nets_forward(x)
+        weight_f = self.nets_forward(torch.cat([fea1_patch, fea2_patch], dim=1))
+        weight_b = self.nets_forward(torch.cat([fea2_patch, fea1_patch], dim=1))
 
         fea1_full, fea2_full = self.share_feature(x1_full), self.share_feature(x2_full)
 
+        batch_size, _, h_patch, w_patch = x1_patch.size()
         bhw = (batch_size, h_patch, w_patch)
 
         output = {}
 
-        output['offset_1'] = weight_f.reshape(batch_size, 4, 2)
-        output['offset_2'] = weight_b.reshape(batch_size, 4, 2)
-
-        output['points_2_pred'] = self.corners + output['offset_1']
-        output['points_1_pred'] = self.corners + output['offset_2']
-        homo_21 = dlt_homo(output['points_2_pred'], input['points_1'])
-        homo_12 = dlt_homo(output['points_1_pred'], input['points_2'])
-
-        # img1 warp to img2, img2_pred = img1_warp
-        img1_warp = warp_image_from_H(homo_21, x1_full, *bhw)
-        img2_warp = warp_image_from_H(homo_12, x2_full, *bhw)
-
-        output['img1_warp_rgb'] = warp_image_from_H(
-            homo_21, input['img1_full_rgb'], *bhw
-        )
-        output['img2_warp_rgb'] = warp_image_from_H(
-            homo_12, input['img2_full_rgb'], *bhw
-        )
-
-        fea1_warp = warp_image_from_H(homo_21, fea1_full, *bhw)
-        fea2_warp = warp_image_from_H(homo_12, fea2_full, *bhw)
+        if self.params.model_version == 'basis':
+            H_flow_f = (self.basis * weight_f).sum(1).reshape(batch_size, 2, h_patch, w_patch)
+            H_flow_b = (self.basis * weight_b).sum(1).reshape(batch_size, 2, h_patch, w_patch)
+            img1_warp = get_warp_flow(x1_full, H_flow_b, start=input['start'])
+            img2_warp = get_warp_flow(x2_full, H_flow_f, start=input['start'])
+            output['H_flow'] = [H_flow_f, H_flow_b]
+        elif self.params.model_version == 'offset':
+            output['offset_1'] = weight_f.reshape(batch_size, 4, 2)
+            output['offset_2'] = weight_b.reshape(batch_size, 4, 2)
+            output['points_2_pred'] = self.corners + output['offset_1']
+            output['points_1_pred'] = self.corners + output['offset_2']
+            homo_21 = dlt_homo(output['points_2_pred'], input['points_1'])
+            homo_12 = dlt_homo(output['points_1_pred'], input['points_2'])
+            img1_warp = warp_image_from_H(homo_21, x1_full, *bhw)
+            img2_warp = warp_image_from_H(homo_12, x2_full, *bhw)
+            output['H_flow'] = [homo_21, homo_12]
+        else:
+            raise        
 
         fea1_patch_warp = self.share_feature(img1_warp)
         fea2_patch_warp = self.share_feature(img2_warp)
 
         output['fea_full'] = [fea1_full, fea2_full]
-        output['H_flow'] = [homo_21, homo_12]
-        output["fea_warp"] = [fea1_warp, fea2_warp]
         output["fea_patch"] = [fea1_patch, fea2_patch]
         output["fea_patch_warp"] = [fea1_patch_warp, fea2_patch_warp]
         output["img_warp"] = [img1_warp, img2_warp]
@@ -185,8 +174,8 @@ def util_test_net_forward():
     pts = [[px, py], [px + pw, py], [px, py + ph], [px + pw, py + ph]]
     pts_1 = torch.from_numpy(np.array(pts)[np.newaxis]).float()
     pts_2 = torch.from_numpy(np.array(pts)[np.newaxis]).float()
-
-    img = cv2.imread('dataset/AVM/10467_A.jpg', 0)
+    ipdb.set_trace()
+    img = cv2.imread('dataset/test/10467_A.jpg', 0)
     img_patch = img[py : py + ph, px : px + pw]
 
     input = torch.from_numpy(img[np.newaxis, np.newaxis].astype(np.float32))
@@ -194,9 +183,6 @@ def util_test_net_forward():
     data_dict = {}
     data_dict["imgs_gray_full"] = torch.cat([input, input], dim=1).cuda()
     data_dict["imgs_gray_patch"] = torch.cat([input_patch, input_patch], dim=1).cuda()
-    data_dict["imgs_full_rgb"] = data_dict["imgs_gray_full"]
-    data_dict['img1_full_rgb'] = input.cuda()
-    data_dict['img2_full_rgb'] = input.cuda()
     data_dict["start"] = torch.tensor([px, py]).reshape(2, 1, 1).float()
     data_dict['points_1'] = pts_1.cuda()
     data_dict['points_2'] = pts_2.cuda()
@@ -213,7 +199,7 @@ def util_test_net_forward():
     out = net(data_dict)
     print(out.keys())
     res = out['img_warp'][0][0].cpu().detach().numpy().transpose((1, 2, 0))
-    cv2.imwrite('dataset/AVM/test_res.jpg', res)
+    cv2.imwrite('dataset/test/test_res.jpg', res)
 
 
 if __name__ == '__main__':

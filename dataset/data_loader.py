@@ -3,6 +3,7 @@ import os
 import pickle
 import random
 import cv2
+import ipdb
 
 import numpy as np
 import torch
@@ -24,15 +25,12 @@ class HomoTrainData(Dataset):
         self.normalize = True
         self.horizontal_flip_aug = True
 
-        self.list_path = params.train_data_dir + '/train_list.txt'
+        self.list_path =os.path.join(params.train_data_dir, 'train_list.txt')
         self.data_all = open(self.list_path, 'r').readlines()
         total_sample = len(self.data_all)
         num = int(total_sample * params.train_data_ratio)
         self.data_infor = self.data_all[:num]
-        if params.is_test_last_10_percent:
-            num = int(total_sample * 0.1)
-            self.data_infor = self.data_all[(total_sample - num) :]
-        self.data_dir = params.train_data_dir + '/Train/'
+        self.data_dir = os.path.join(params.train_data_dir, "train")
 
         self.seed = 0
         random.seed(self.seed)
@@ -49,18 +47,12 @@ class HomoTrainData(Dataset):
         img_names = img_names.split(' ')
         img1 = cv2.imread(f'{self.data_dir}/{img_names[0]}')
         img2 = cv2.imread(f'{self.data_dir}/{img_names[1][:-1]}')
-        if self.params.is_test_assigned_img:
-            img1 = cv2.imread('dataset/AVM/10467_A.jpg')
-            img2 = cv2.imread('dataset/AVM/10467_B.jpg')
+        # ipdb.set_trace()
 
         img1_full = torch.tensor(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
         img2_full = torch.tensor(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))
         img1_full = img1_full.unsqueeze(0).float()
         img2_full = img2_full.unsqueeze(0).float()
-        img1_full_rgb = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img2_full_rgb = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img1_full_rgb = torch.tensor(img1_full_rgb).float()
-        img2_full_rgb = torch.tensor(img2_full_rgb).float()
 
         # img aug
         img1, img2, img1_patch, img2_patch, start = self.data_aug(
@@ -89,8 +81,6 @@ class HomoTrainData(Dataset):
         data_dict = {}
         data_dict['img1_full'] = img1_full
         data_dict['img2_full'] = img2_full
-        data_dict['img1_full_rgb'] = img1_full_rgb
-        data_dict['img2_full_rgb'] = img2_full_rgb
         data_dict["imgs_gray_full"] = imgs_gray_full
         data_dict["imgs_gray_patch"] = imgs_gray_patch
         data_dict["start"] = start
@@ -140,7 +130,7 @@ class HomoTestData(Dataset):
 
         self.npy_list = os.path.join(params.test_data_dir, "test_list.txt")
         self.npy_path = os.path.join(params.test_data_dir, "Coordinate-v2")
-        self.files_path = os.path.join(params.test_data_dir, "Test")
+        self.files_path = os.path.join(params.test_data_dir, "test")
 
         self.data_infor = open(self.npy_list, 'r').readlines()
 
@@ -164,11 +154,6 @@ class HomoTestData(Dataset):
 
         img1 = cv2.imread(os.path.join(img_files, img_names[0]))
         img2 = cv2.imread(os.path.join(img_files, img_names[1]))
-
-        img1_full_rgb = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img2_full_rgb = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img1_full_rgb = torch.tensor(img1_full_rgb).float()
-        img2_full_rgb = torch.tensor(img2_full_rgb).float()
 
         img1 = cv2.resize(img1, (640, 360))
         img2 = cv2.resize(img2, (640, 360))
@@ -196,10 +181,6 @@ class HomoTestData(Dataset):
             normalize=self.normalize,
             horizontal_flip=self.horizontal_flip_aug,
         )
-        img1_full_rgb = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img2_full_rgb = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img1_full_rgb = torch.tensor(img1_full_rgb).float()
-        img2_full_rgb = torch.tensor(img2_full_rgb).float()
         # array to tensor
         imgs_ori = (
             torch.tensor(np.concatenate([img1, img2], axis=2)).permute(2, 0, 1).float()
@@ -240,8 +221,6 @@ class HomoTestData(Dataset):
         data_dict["imgs_ori"] = imgs_ori
         data_dict['img1_full'] = img1_full
         data_dict['img2_full'] = img2_full
-        data_dict['img1_full_rgb'] = img1_full_rgb
-        data_dict['img2_full_rgb'] = img2_full_rgb
         data_dict["points"] = points
         data_dict['points_1'] = pts_1
         data_dict['points_2'] = pts_2
@@ -298,7 +277,7 @@ def fetch_dataloader(params):
             num_workers=params.num_workers,
             pin_memory=params.cuda,
             drop_last=True,
-            # prefetch_factor=3, # for pytorch >=1.5.0
+            prefetch_factor=3, # for pytorch >=1.5.0
         )
         dataloaders["train"] = train_dl
 
@@ -310,8 +289,8 @@ def fetch_dataloader(params):
             batch_size=params.eval_batch_size,
             shuffle=False,
             num_workers=params.num_workers,
-            pin_memory=params.cuda
-            # prefetch_factor=3, # for pytorch >=1.5.0
+            pin_memory=params.cuda,
+            prefetch_factor=3, # for pytorch >=1.5.0
         )
     else:
         dl = None

@@ -10,9 +10,14 @@ import itertools
 import collections
 from easydict import EasyDict
 from subprocess import check_call
+import torch
 
 from common import utils
 from experiment_dispatcher import dispatcher, tmux
+
+''' add this line, because GTX30 serials' default torch.matmul() on cuda is uncorrected '''
+torch.backends.cuda.matmul.allow_tf32 = False
+
 
 PYTHON = sys.executable
 parser = argparse.ArgumentParser()
@@ -98,9 +103,9 @@ def launch_training_job(
             f'\t input `CTRL+D` to end the current subwindow \n'
             f'\t turn off the window to keep the `tmux` window running in the background \n'
         )
-        time.sleep(10)
+        time.sleep(3)
         check_call(f'tmux ls', shell=True)
-        time.sleep(5)
+        time.sleep(2)
         check_call(f'tmux attach -t {start_id}', shell=True)
 
 
@@ -115,16 +120,18 @@ def experiment():
     params = utils.Params(json_path)
 
     exp_name = 'baseshomo'
-    exp_start_id = 8
+    exp_start_id = 21
     session_name = str(exp_start_id)  # tmux session name, need pre-create
     param_pool_dict = collections.OrderedDict()
     device_used = collections.OrderedDict()
-    device_used = ['5', '5']
-    param_pool_dict["train_batch_size"] = [8, 16]
-    param_pool_dict["eval_batch_size"] = [8]
+    device_used = ['0']
+    param_pool_dict["train_batch_size"] = [16]
     param_pool_dict["num_workers"] = [8]
-    # param_pool_dict['train_data_ratio'] = [0.1]
-
+    param_pool_dict['train_data_ratio'] = [0.1]
+    param_pool_dict['model_version'] = ['basis']
+    param_pool_dict['is_add_lrr_module'] = ['True']
+    param_pool_dict['loss_func_type'] = ['all']
+    
     # '0', '1', '2', '3', '4', '5', '6', '7'
     # device_used = ['6']
     # device_used = ['0', '0']
