@@ -191,7 +191,7 @@ def util_test_net_forward():
 
     out = net(data_dict)
     print(out.keys())
-    res = out['img_warp'][0][0].cpu().detach().numpy().transpose((1, 2, 0))
+    res = out['img_warp'][0][0][0].cpu().detach().numpy().transpose((1, 2, 0))
     cv2.imwrite('dataset/test/test_res.jpg', res)
 
 
