@@ -13,7 +13,8 @@ from tqdm import tqdm
 
 # from apex import amp
 
-import dataset.data_loader_dybev as data_loader_dybev
+# import dataset.data_loader_dybev as data_loader_dybev
+import dataset.data_loader as data_loader
 import model.net as net
 
 from common import utils
@@ -128,6 +129,8 @@ def train_and_evaluate(model, manager):
         # Save latest model, or best model weights accroding to the params.major_metric
         manager.check_best_save_last_checkpoints(latest_freq_val=999, latest_freq=1)
 
+        evaluate(model, manager)
+        
 
 if __name__ == '__main__':
 
@@ -210,7 +213,8 @@ if __name__ == '__main__':
     logger.info("Loading the train datasets from {}".format(params.train_data_dir))
 
     # fetch dataloaders
-    dataloaders = data_loader_dybev.fetch_dataloader(params)
+    # dataloaders = data_loader_dybev.fetch_dataloader(params)
+    dataloaders = data_loader.fetch_dataloader(params)
 
     # model
     model = net.fetch_net(params)

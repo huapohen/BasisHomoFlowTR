@@ -17,7 +17,7 @@
     "dataset_type": "basic",
     "transform_type": "basic",
     "net_type": "basic",
-    "loss_type": "basic",
+    "pair_loss_type": "basic",
     "eval_type": "val",
     "major_metric": "AVG",
     "save_mode": "local",
@@ -60,8 +60,8 @@
     ],
     "rho_dybev": 8,
     "crop_size_dybev": [
-        288,
-        288
+        160,
+        160
     ],
     "is_dybev": true,
     "is_debug_dataloader": false

@@ -20,17 +20,13 @@ class HomoData(Dataset):
         self.gray = True
         self.horizontal_flip_aug = True if mode == 'train' else False
         txt_list = []
-        suffix = '_pair_names_list.txt'
-        if len(params.camera_list) == 4:
-            txt_list = ['all_fblr' + suffix]
-        else:
-            for cam in params.camera_list:
-                txt_list.append(cam + suffix)
-        self.data_dir = os.path.join(params.train_data_dir, mode, params.data_source_type)
-        self.data_all = []
-        for txt_name in txt_list:
-            path = os.path.join(self.data_dir, 'pair', txt_name)
-            self.data_all += open(path, 'r').readlines()
+        
+        base_path = '/home/data/lwb/data/dybev/'
+        # self.data_dir = base_path + '/tmp'
+        self.data_dir = base_path + '/b16'
+        path = os.path.join(self.data_dir, f'{mode}.txt')
+        
+        self.data_all = open(path, 'r').readlines()
         total_sample = len(self.data_all)
 
         random.seed(params.seed)
@@ -58,10 +54,11 @@ class HomoData(Dataset):
         '''
         img_names = self.data_infor[idx]
         img_names = img_names.split(' ')
+        
         ph, pw = self.crop_size
         patch_list, full_list = [], []
         pts_1_list, pts_2_list = [], []
-        
+
         for i in range(int(len(img_names) / 2)):
             img1 = cv2.imread(f'{self.data_dir}/{img_names[i * 2]}')
             img2 = cv2.imread(f'{self.data_dir}/{img_names[i * 2 + 1].rsplit()[0]}')
@@ -100,7 +97,7 @@ class HomoData(Dataset):
             if img1.shape[0] != ch or img1.shape[1] != cw:
                 img1 = cv2.resize(img1, (cw, ch))
                 img2 = cv2.resize(img2, (cw, ch))
-            return img1, img2, [0, 0]
+            return img1, img2, 0, 0
 
         if self.horizontal_flip_aug and random.random() <= 0.5:
             img1 = np.flip(img1, 1)

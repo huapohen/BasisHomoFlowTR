@@ -6,15 +6,17 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 7
+    cfg.exp_id = 16
     cfg.gpu_used = '1'
     cfg.train_data_ratio = 1.0
     cfg.num_workers = 8
-    cfg.train_data_dir = '/home/data/lwb/data/dybev/v9'
+    cfg.train_data_dir = '/home/data/lwb/data/dybev/b16'
     cfg.test_data_dir = cfg.train_data_dir
-    # cfg.exp_description = f' exp_{cfg.exp_id}: '
-    # cfg.exp_description += ' v9, front fist '
-    cfg.exp_description = 'exp_6-7: dataset: [v7, v9], loss_type = all_fblr'
+    cfg.exp_description = f' exp_{cfg.exp_id}: '
+    cfg.exp_description += ' outdoor '
+    cfg.camera_list = ['front']
+    cfg.train_batch_size = 8
+    # cfg.pair_loss_type = 'front_first'
     cfg = continue_train(cfg)
     # cfg.gpu_used = '0_1_2_3_4_5_6_7' # use 8 GPUs
     return cfg
@@ -22,9 +24,9 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 8
-    cfg.gpu_used = '7'
-    cfg.is_debug_dataloader = True
+    cfg.exp_id = 14
+    cfg.gpu_used = '0'
+    # cfg.is_debug_dataloader = True
     cfg.eval_batch_size = 16
     # cfg.is_vis_and_exit = True
     # cfg.is_save_gif = False

@@ -44,3 +44,4 @@ git*
 dataset/Coordinate-v2
 dataset/*.txt
 dataset/avm
+!/tools/*/*.jpg

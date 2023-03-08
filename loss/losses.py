@@ -90,6 +90,19 @@ def camera_loss_sequnce():
 
 
 def compute_losses(output, input, params):
+    losses = {}
+    i = 0
+    imgs_patch = input['imgs_gray_patch']
+    img1_warp, img2_warp = output["img_warp"][i]
+    im_diff_fw = imgs_patch[:, i*2:i*2+1] - img2_warp
+    im_diff_bw = imgs_patch[:, i*2+1:i*2+2] - img1_warp
+    photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
+    photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
+    losses['total'] = photo_loss_f + photo_loss_b
+    return losses
+
+
+def compute_losses_v0(output, input, params):
     '''
         1. (f0,l0), (b1,r1), (l1,b0), (r0,f1) photo_loss 正反全部计算
         2. 以前摄像头为准: l0→f0, r0→f1, b0→l1, b1→r1
@@ -101,41 +114,42 @@ def compute_losses(output, input, params):
         8. l0->f0(0), r0->f1(1), b0->l1(5), b1->r1(7)
     '''
     sequence = camera_loss_sequnce()
-    assert params.loss_type in sequence.keys()
-    idx_seq = sequence[params.loss_type]
+    assert params.pair_loss_type in sequence.keys()
+    idx_seq = sequence[params.pair_loss_type]
     
     losses = {}
     imgs_patch = input['imgs_gray_patch']
-    losses['total'] = 0
-    total_loss = []
+    photo_losses = []
     for i, camera in enumerate(params.camera_list):
         img1_warp, img2_warp = output["img_warp"][i]
         im_diff_fw = imgs_patch[:, i*2:i*2+1] - img2_warp
         im_diff_bw = imgs_patch[:, i*2+1:i*2+2] - img1_warp
         photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
         photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
-        total_loss.append(photo_loss_f)
-        total_loss.append(photo_loss_b)
-        
-    camera_loss = []
-    for i in idx_seq:
-        camera_loss.append(total_loss[i])
+        photo_losses.append(photo_loss_f)
+        photo_losses.append(photo_loss_b)
     
-    for i in range(4):
-        cam_loss = camera_loss[i]
-        if len(idx_seq) == 8
-            cam_loss = camera_loss[i*2] + camera_loss[i*2+1]
-        losses[params.camera_list[i]] = cam_loss
-        
-    # loss系数设置
-    if len(idx_seq) == 4:
-        coef = [0.35, 0.35, 0.15, 0.15]
+    
+    if len(idx_seq) == 8:
+        total_loss = 0
+        for i, cam in enumerate(params.camera_list):
+            losses[cam] = photo_losses[i*2] + photo_losses[i*2+1]
+            total_loss += losses[cam]
+        losses['total'] = total_loss / len(params.camera_list)
     else:
-        coef = [1/8 for _ in range(8)]
-    
-    total_loss = [a*x.unsqueeze(0) for a,x in zip(coef, total_loss)]
-    # ipdb.set_trace()
-    losses['total'] = 2 * torch.cat(total_loss).sum()
+        total_loss = []
+        for i in idx_seq:
+            total_loss.append(photo_losses[i])
+        
+        # loss系数设置
+        if len(idx_seq) == 4:
+            coef = [0.35, 0.35, 0.15, 0.15]
+        else:
+            coef = [1/8 for _ in range(8)]
+        
+        total_loss = [a*x.unsqueeze(0) for a,x in zip(coef, total_loss)]
+        # ipdb.set_trace()
+        losses['total'] = 2 * torch.cat(total_loss).sum()
 
     return losses
 
