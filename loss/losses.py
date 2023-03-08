@@ -105,11 +105,11 @@ def compute_losses(output, input, params):
         # im_diff = img2 - img1_warp
         photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
         photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
-        # photo_loss = photo_loss_function(diff=im_diff, q=1, averge=True)
-        # total_loss += photo_loss_f + photo_loss_b + photo_loss * 1e-8
+        photo_loss = photo_loss_function(diff=im_diff, q=1, averge=True)
         total_loss += photo_loss_f + photo_loss_b
+        # total_loss += photo_loss_f + photo_loss_b + photo_loss * 1e-8
         
-    # gt_photo_error = 0.77
+    # gt_photo_error: b16 = 0.77   b07 = 0.25
     losses['total'] = total_loss / len(params.camera_list)
     return losses
 
