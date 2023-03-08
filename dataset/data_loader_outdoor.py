@@ -14,7 +14,10 @@ class HomoData(Dataset):
         self.mode = mode
         self.mean_I = np.array([118.93, 113.97, 102.60]).reshape(1, 1, 3)
         self.std_I = np.array([69.85, 68.81, 72.45]).reshape(1, 1, 3)
-        self.crop_size = params.crop_size_outdoor
+        if params.set_name == 'b16':
+            self.crop_size = params.crop_size_outdoor
+        else:
+            self.crop_size = params.crop_size_dybev
         self.rho = params.rho_dybev
         self.normalize = True
         self.gray = True
@@ -22,8 +25,7 @@ class HomoData(Dataset):
         txt_list = []
         
         base_path = '/home/data/lwb/data/dybev/'
-        # self.data_dir = base_path + '/tmp'
-        self.data_dir = base_path + '/b16'
+        self.data_dir = os.path.join(base_path, params.set_name)
         path = os.path.join(self.data_dir, f'{mode}.txt')
         
         self.data_all = open(path, 'r').readlines()
@@ -82,10 +84,15 @@ class HomoData(Dataset):
         data_dict["imgs_gray_patch"] = torch.tensor(patch).permute(2, 0, 1).float()
         data_dict['points_1'] = torch.cat(pts_1_list, dim=0)
         data_dict['points_2'] = torch.cat(pts_2_list, dim=0)
-        frames_name = img_names[0].split(os.sep)[1].split('.')[0]
-        frames_name += '_vs_'+ '_'.join(img_names[1].split('.')[0].split('_')[1:])
         # ipdb.set_trace()
-        data_dict['frames_name'] = frames_name
+        if self.params.set_name == 'b16':
+            # 20230227113856/20230227113856_3_f_l.jpg
+            frames_name = img_names[0].split(os.sep)[1].split('.')[0]
+            frames_name += '_vs_'+ '_'.join(img_names[1].split('.')[0].split('_')[1:])
+            data_dict['frames_name'] = frames_name
+        else:
+            # l_f_pair/00090/20221205135519_front_00090_p0008_0.jpg
+            data_dict['frames_name'] = ''
         
         # ipdb.set_trace()
         return data_dict

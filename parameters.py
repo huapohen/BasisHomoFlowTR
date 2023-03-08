@@ -6,11 +6,13 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 14
+    cfg.exp_id = 15
     cfg.gpu_used = '1'
     cfg.train_data_ratio = 1.0
     cfg.num_workers = 8
-    cfg.train_data_dir = '/home/data/lwb/data/dybev/b16'
+    cfg.set_name = 'b16'
+    # cfg.set_name = 'b07'
+    cfg.train_data_dir = f'/home/data/lwb/data/dybev/{cfg.set_name}'
     cfg.test_data_dir = cfg.train_data_dir
     cfg.exp_description = f' exp_{cfg.exp_id}: '
     cfg.exp_description += ' outdoor '
@@ -26,11 +28,11 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 14
+    cfg.exp_id = 15
     cfg.gpu_used = '0'
     # cfg.is_debug_dataloader = True
-    cfg.eval_batch_size = 2
-    cfg.num_workers = 0
+    cfg.eval_batch_size = 8
+    cfg.num_workers = 2
     # cfg.is_vis_and_exit = True
     cfg.save_iteration = 1
     cfg.is_save_gif = True

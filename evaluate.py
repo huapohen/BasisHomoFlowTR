@@ -99,7 +99,7 @@ def evaluate(model, manager):
                             
                             save_file = [img2_full, img1_full_warp]
                             save_name = f'{prefix}_pred'
-                            eval_save_result(save_file, save_name, manager, k, j, i, 0)
+                            # eval_save_result(save_file, save_name, manager, k, j, i, 0)
                             
                             # origin
                             img1_full = imgs_full[j, i*6:i*6+3].permute(1, 2, 0)
@@ -107,8 +107,8 @@ def evaluate(model, manager):
                             img1_full = cv2.cvtColor(img1_full, cv2.COLOR_BGR2RGB)
                             save_file = [img2_full, img1_full]
                             save_name = f'{prefix}_ori'
-                            eval_save_result(save_file, save_name, manager, k, j, i, 1)
-                            # eval_save_result(save_file, save_name, manager, k, j, i, 0)
+                            # eval_save_result(save_file, save_name, manager, k, j, i, 1)
+                            eval_save_result(save_file, save_name, manager, k, j, i, 0)
 
                             kpr_list.append(f'{err:.4f} {prefix}')
                 # prt_str = f"{k}:{np.mean(err_avg):.4f} "
