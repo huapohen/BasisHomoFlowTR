@@ -58,26 +58,34 @@ class HomoData(Dataset):
         ph, pw = self.crop_size
         patch_list, full_list = [], []
         pts_1_list, pts_2_list = [], []
-
+        imgs_ori_list = []
+        
         for i in range(int(len(img_names) / 2)):
             img1 = cv2.imread(f'{self.data_dir}/{img_names[i * 2]}')
             img2 = cv2.imread(f'{self.data_dir}/{img_names[i * 2 + 1].rsplit()[0]}')
             # ipdb.set_trace()
-            img1, img2, img1_patch, img2_patch, px, py = self.data_aug(img1, img2)
+            img1_full, img2_full, img1_patch, img2_patch, px, py = self.data_aug(img1, img2)
             patch_list += [img1_patch, img2_patch]
-            full_list += [img1, img2]
+            full_list += [img1_full, img2_full]
+            imgs_ori_list += [img1, img2]
             pts = [[px, py], [px + pw, py], [px, py + ph], [px + pw, py + ph]]
             pts_1_list.append(torch.from_numpy(np.array(pts)).float())
             pts_2_list.append(torch.from_numpy(np.array(pts)).float())
         
         patch = np.concatenate(patch_list, axis=2)
         full = np.concatenate(full_list, axis=2)
+        imgs_ori = np.concatenate(imgs_ori_list, axis=2)
         
         data_dict = {}
+        data_dict["imgs_ori"] = torch.tensor(imgs_ori).permute(2, 0, 1).float()
         data_dict["imgs_gray_full"] = torch.tensor(full).permute(2, 0, 1).float()
         data_dict["imgs_gray_patch"] = torch.tensor(patch).permute(2, 0, 1).float()
         data_dict['points_1'] = torch.cat(pts_1_list, dim=0)
         data_dict['points_2'] = torch.cat(pts_2_list, dim=0)
+        frames_name = img_names[0].split(os.sep)[1].split('.')[0]
+        frames_name += '_vs_'+ '_'.join(img_names[1].split('.')[0].split('_')[1:])
+        # ipdb.set_trace()
+        data_dict['frames_name'] = frames_name
         
         # ipdb.set_trace()
         return data_dict
@@ -95,9 +103,9 @@ class HomoData(Dataset):
         def resize(img1, img2):
             ch, cw = self.crop_size
             if img1.shape[0] != ch or img1.shape[1] != cw:
-                img1 = cv2.resize(img1, (cw, ch))
-                img2 = cv2.resize(img2, (cw, ch))
-            return img1, img2, 0, 0
+                img1_rs = cv2.resize(img1, (cw, ch))
+                img2_rs = cv2.resize(img2, (cw, ch))
+            return img1_rs, img2_rs, 0, 0
 
         if self.horizontal_flip_aug and random.random() <= 0.5:
             img1 = np.flip(img1, 1)

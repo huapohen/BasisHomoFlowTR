@@ -37,7 +37,7 @@ class Manager:
         self.writer = writer
         self.logger = logger
 
-        self.epoch = 0
+        self.epoch = 1
         self.epoch_val = 0
         self.step = 0
         self.best_val_score = 100

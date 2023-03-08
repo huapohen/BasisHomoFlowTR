@@ -46,13 +46,14 @@ def geometricDistance(correspondence, flow):
     return error
 
 
-def geometricDistance_v2(inp, out, scale_x=1.0, scale_y=1.0):
-    ones = torch.ones_like(inp['points_1_all'])
-    pts_1 = torch.cat([inp['points_1_all'], ones[:, :, :1]], -1)
-    pts_2 = inp['points_2_all']
-    homo_21_inv = torch.inverse(out['H_flow'][0])
-    homo_12_inv = torch.inverse(out['H_flow'][1])
-
+def geometricDistance_v2(i, inp, out, scale_x=1.0, scale_y=1.0):
+    pts_1 = inp['points_1'][i*2:i*2+2]
+    ones = torch.ones_like(pts_1)
+    pts_1 = torch.cat([pts_1, ones[:, :, :1]], -1)
+    pts_2 = inp['points_2'][i*2:i*2+2]
+    homo_21_inv = torch.inverse(out['H_flow'][i][0])
+    homo_12_inv = torch.inverse(out['H_flow'][i][1])
+    # ipdb.set_trace()
     def calc_pts_err(homo, pts1, pts2, scale_x, scale_y):
         pts = pts1.permute(0, 2, 1)
         pts[:, 0] = pts[:, 0] / scale_x
@@ -91,14 +92,21 @@ def camera_loss_sequnce():
 
 def compute_losses(output, input, params):
     losses = {}
-    i = 0
     imgs_patch = input['imgs_gray_patch']
-    img1_warp, img2_warp = output["img_warp"][i]
-    im_diff_fw = imgs_patch[:, i*2:i*2+1] - img2_warp
-    im_diff_bw = imgs_patch[:, i*2+1:i*2+2] - img1_warp
-    photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
-    photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
-    losses['total'] = photo_loss_f + photo_loss_b
+    total_loss = 0
+    for i, camera in enumerate(params.camera_list):
+        img1_warp, img2_warp = output["img_warp"][i]
+        img1 = imgs_patch[:, i*2:i*2+1]
+        img2 = imgs_patch[:, i*2+1:i*2+2]
+        im_diff_fw = img1 - img2_warp
+        im_diff_bw = img2 - img1_warp
+        # im_diff_fw = img1 - img2
+        # im_diff_bw = (img2 - img1_warp) * 1e-8
+        photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
+        photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
+        total_loss += photo_loss_f + photo_loss_b
+    # gt_loss=0.53 * 2 = 1.06
+    losses['total'] = total_loss / len(params.camera_list)
     return losses
 
 
@@ -154,24 +162,29 @@ def compute_losses_v0(output, input, params):
     return losses
 
 
-def compute_eval_results(data_batch, output_batch, manager):
+def compute_eval_results(data_batch, output_batch, params):
+    batch_size, _, grid_h, grid_w = data_batch["imgs_ori"].shape
+    errs = np.zeros(batch_size)
+    img1_full_warp_list = []
+    
+    for i, camera in enumerate(params.camera_list):
+        imgs_full = data_batch["imgs_ori"]
 
-    imgs_full = data_batch["imgs_ori"]
-    batch_size, _, grid_h, grid_w = imgs_full.shape
-
-    bhw = (batch_size, grid_h, grid_w)
-    homo_21, homo_12 = output_batch['H_flow']
-
-    # img1 warp to img2, img2_pred = img1_warp
-    img1_full_warp = warp_image_from_H(homo_21, imgs_full[:, :3, ...], *bhw)
-    img2_full_warp = warp_image_from_H(homo_12, imgs_full[:, 3:, ...], *bhw)
-
-    scale_x = grid_w / float(data_batch['imgs_gray_full'].shape[3])
-    scale_y = grid_h / float(data_batch['imgs_gray_full'].shape[2])
-    errs = geometricDistance_v2(data_batch, output_batch, scale_x, scale_y)
+        bhw = (batch_size, grid_h, grid_w)
+        homo_21, homo_12 = output_batch['H_flow'][i]
+        img1_full_warp = warp_image_from_H(homo_21, imgs_full[:, i*6:i*6+3], *bhw)
+        # img2_full_warp = warp_image_from_H(homo_12, imgs_full[:, i*6+3:i*6+6], *bhw)
+        img1_full_warp_list.append(img1_full_warp)
+        
+        _h, _w = data_batch['imgs_gray_full'].shape[2:]
+        scale_x = grid_w / _w
+        scale_y = grid_h / _h
+        err = geometricDistance_v2(i, data_batch, output_batch, scale_x, scale_y)
+        # ipdb.set_trace()
+        errs += err
 
     eval_results = {}
-    eval_results["img1_full_warp"] = img1_full_warp
-    eval_results["errs"] = errs
-
+    eval_results["img1_full_warp"] = torch.cat(img1_full_warp_list, 1)
+    eval_results["errs"] = errs / len(params.camera_list)
+    
     return eval_results

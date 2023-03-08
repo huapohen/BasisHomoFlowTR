@@ -6,7 +6,7 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 16
+    cfg.exp_id = 14
     cfg.gpu_used = '1'
     cfg.train_data_ratio = 1.0
     cfg.num_workers = 8
@@ -16,6 +16,7 @@ def train_config(cfg):
     cfg.exp_description += ' outdoor '
     cfg.camera_list = ['front']
     cfg.train_batch_size = 8
+    cfg.eval_freq = 100
     # cfg.pair_loss_type = 'front_first'
     cfg = continue_train(cfg)
     # cfg.gpu_used = '0_1_2_3_4_5_6_7' # use 8 GPUs
@@ -27,9 +28,11 @@ def test_config(cfg, args=None):
     cfg.exp_id = 14
     cfg.gpu_used = '0'
     # cfg.is_debug_dataloader = True
-    cfg.eval_batch_size = 16
+    cfg.eval_batch_size = 2
+    cfg.num_workers = 0
     # cfg.is_vis_and_exit = True
-    # cfg.is_save_gif = False
+    cfg.save_iteration = 1
+    cfg.is_save_gif = True
     # cfg.eval_visualize_save = False
     # cfg.restore_file = 'test_model_best.pth'
     cfg.dataset_type = "test"

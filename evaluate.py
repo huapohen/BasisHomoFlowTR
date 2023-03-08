@@ -58,89 +58,68 @@ def evaluate(model, manager):
     model.eval()
     params = manager.params
 
-    RE = [
-        '0000011',
-        '0000016',
-        '00000147',
-        '00000155',
-        '00000158',
-        '00000107',
-        '00000239',
-        '0000030',
-    ]
-    LT = [
-        '0000038',
-        '0000044',
-        '0000046',
-        '0000047',
-        '00000238',
-        '00000177',
-        '00000188',
-        '00000181',
-    ]
-    LL = ['0000085', '00000100', '0000091', '0000092', '00000216', '00000226']
-    SF = ['00000244', '00000251', '0000026', '0000030', '0000034', '00000115']
-    LF = ['00000104', '0000031', '0000035', '00000129', '00000141', '00000200']
-    MSE_RE = []
-    MSE_LT = []
-    MSE_LL = []
-    MSE_SF = []
-    MSE_LF = []
+    MSE_BEV = []
     
     kpr_list = []
 
     with torch.no_grad():
         # compute metrics over the dataset
         iter_max = len(manager.dataloaders[params.eval_type])
-        with tqdm(total=iter_max) as t:
+        # with tqdm(total=iter_max) as t:
+        if 1:
             for k, data_batch in enumerate(manager.dataloaders[params.eval_type]):
                 # data parse
                 imgs_full = data_batch["imgs_ori"]
-                video_name = data_batch["video_name"]
-                npy_name = data_batch["npy_name"]
-                # move to GPU if available
+                fnames = data_batch["frames_name"]
                 data_batch = utils.tensor_gpu(data_batch)
-                # compute model output
                 output_batch = model(data_batch)
-                # compute all metrics on this batch
                 eval_results = compute_eval_results(data_batch, output_batch, params)
                 img1s_full_warp = eval_results["img1_full_warp"]
                 err_avg = eval_results["errs"]
-
-                for j in range(len(err_avg)):
-
-                    if video_name[j] in RE:
-                        MSE_RE.append(err_avg[j])
-                    elif video_name[j] in LT:
-                        MSE_LT.append(err_avg[j])
-                    elif video_name[j] in LL:
-                        MSE_LL.append(err_avg[j])
-                    elif video_name[j] in SF:
-                        MSE_SF.append(err_avg[j])
-                    elif video_name[j] in LF:
-                        MSE_LF.append(err_avg[j])
+                # ipdb.set_trace()
+                bs = len(err_avg)
+                for j in range(bs):
+                    err = err_avg[j] * 1e-8
+                    MSE_BEV.append(err)
 
                     if k % params.save_iteration == 0 and params.is_save_gif:
-                        img2_full = imgs_full[j, 3:, ...].permute(1, 2, 0)
-                        img2_full = img2_full.cpu().numpy().astype(np.uint8)
-                        img2_full = cv2.cvtColor(img2_full, cv2.COLOR_BGR2RGB)
+                        for i, camera in enumerate(params.camera_list):
+                            # pred
+                            img2_full = imgs_full[j, i*6+3:i*6+6].permute(1, 2, 0)
+                            img2_full = img2_full.cpu().numpy().astype(np.uint8)
+                            img2_full = cv2.cvtColor(img2_full, cv2.COLOR_BGR2RGB)
 
-                        img1_full_warp = img1s_full_warp[j].permute(1, 2, 0)
-                        img1_full_warp = img1_full_warp.cpu().numpy().astype(np.uint8)
-                        img1_full_warp = cv2.cvtColor(img1_full_warp, cv2.COLOR_BGR2RGB)
+                            img1_full_warp = img1s_full_warp[j, i*3:i*3+3].permute(1, 2, 0)
+                            img1_full_warp = img1_full_warp.cpu().numpy().astype(np.uint8)
+                            img1_full_warp = cv2.cvtColor(img1_full_warp, cv2.COLOR_BGR2RGB)
 
-                        save_file = [img2_full, img1_full_warp]
-                        # save_file = img1_full_warp
-                        save_name = npy_name[j] + "_" + str(err_avg[j])
-                        eval_save_result(save_file, save_name, manager, k)
+                            ind = f'{k*bs+j+1}_b{k}_{j}'
+                            prefix = f'{ind}_{fnames[j]}_{camera}_err:{err:.4f}'
+                            print(prefix)
+                            
+                            save_file = [img2_full, img1_full_warp]
+                            save_name = f'{prefix}_pred'
+                            eval_save_result(save_file, save_name, manager, k, j, i, 0)
+                            
+                            # origin
+                            img1_full = imgs_full[j, i*6:i*6+3].permute(1, 2, 0)
+                            img1_full = img1_full.cpu().numpy().astype(np.uint8)
+                            img1_full = cv2.cvtColor(img1_full, cv2.COLOR_BGR2RGB)
+                            save_file = [img2_full, img1_full]
+                            save_name = f'{prefix}_ori'
+                            eval_save_result(save_file, save_name, manager, k, j, i, 1)
+                            # eval_save_result(save_file, save_name, manager, k, j, i, 0)
 
-                prt_str = f"{k}:{np.mean(err_avg):.4f} "
-                kpr_list.append(prt_str)
-                t.set_description(prt_str)
-                t.update()
+                            kpr_list.append(f'{err:.4f} {prefix}')
+                # prt_str = f"{k}:{np.mean(err_avg):.4f} "
+                # kpr_list.append(prt_str)
+                # t.set_description(prt_str)
+                # t.update()
         
         kpr_dir = os.path.join(params.model_dir, 'kpr')
         os.makedirs(kpr_dir, exist_ok=True)
+        if 'current_epoch' not in vars(params):
+            params.current_epoch = -1
         kpr_name =  f'epoch={params.current_epoch:02d}_k_points_err_record.txt'
         kpr_path = os.path.join(kpr_dir, kpr_name)
         if os.path.exists(kpr_path):
@@ -149,20 +128,10 @@ def evaluate(model, manager):
         kpr.write(('\n').join(kpr_list))
         kpr.close()
 
-        MSE_RE_avg = sum(MSE_RE) / len(MSE_RE)
-        MSE_LT_avg = sum(MSE_LT) / len(MSE_LT)
-        MSE_LL_avg = sum(MSE_LL) / len(MSE_LL)
-        MSE_SF_avg = sum(MSE_SF) / len(MSE_SF)
-        MSE_LF_avg = sum(MSE_LF) / len(MSE_LF)
-        MSE_avg = (MSE_RE_avg + MSE_LT_avg + MSE_LL_avg + MSE_SF_avg + MSE_LF_avg) / 5
+        MSE_BEV_avg = sum(MSE_BEV) / len(MSE_BEV)
 
         Metric = {
-            "MSE_RE_avg": MSE_RE_avg,
-            "MSE_LT_avg": MSE_LT_avg,
-            "MSE_LL_avg": MSE_LL_avg,
-            "MSE_SF_avg": MSE_SF_avg,
-            "MSE_LF_avg": MSE_LF_avg,
-            "AVG": MSE_avg,
+            "MSE_BEV_avg": MSE_BEV_avg,
         }
         manager.update_metric_status(
             metrics=Metric, split=manager.params.eval_type, batch_size=1
@@ -170,15 +139,9 @@ def evaluate(model, manager):
 
         # update data to logger
         manager.logger.info(
-            "Loss/Test epoch_{} AVG: {:.4f}. "
-            + "RE:{:.4f} LT:{:.4f} LL:{:.4f} SF:{:.4f} LF:{:.4f} ".format(
+            "Loss/Test epoch_{} BEV:{:.4f}. ".format(
                 manager.epoch_val,
-                MSE_avg,
-                MSE_RE_avg,
-                MSE_LT_avg,
-                MSE_LL_avg,
-                MSE_SF_avg,
-                MSE_LF_avg,
+                MSE_BEV_avg
             )
         )
  
@@ -193,7 +156,7 @@ def evaluate(model, manager):
         model.train()
 
 
-def eval_save_result(save_file, save_name, manager, k=0):
+def eval_save_result(save_file, save_name, manager, k, j, i, m):
 
     type_name = 'gif' if type(save_file) == list else 'jpg'
     save_dir_gif = os.path.join(manager.params.model_dir, type_name)
@@ -201,10 +164,10 @@ def eval_save_result(save_file, save_name, manager, k=0):
         os.makedirs(save_dir_gif)
 
     save_dir_gif_epoch = os.path.join(save_dir_gif, str(manager.epoch_val))
-    if k == manager.params.save_iteration and os.path.exists(save_dir_gif_epoch):
-        shutil.rmtree(save_dir_gif_epoch)
-    if not os.path.exists(save_dir_gif_epoch):
-        os.makedirs(save_dir_gif_epoch)
+    if k == 0 and j==0 and i==0 and m==0:
+        if os.path.exists(save_dir_gif_epoch):
+            shutil.rmtree(save_dir_gif_epoch)
+        os.makedirs(save_dir_gif_epoch, exist_ok=True)
 
     save_path = os.path.join(save_dir_gif_epoch, save_name + '.' + type_name)
     if type(save_file) == list:  # save gif

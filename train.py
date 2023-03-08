@@ -121,15 +121,17 @@ def train(model, manager):
 def train_and_evaluate(model, manager):
 
     for epoch in range(manager.params.num_epochs):
-        manager.params.current_epoch = epoch
+        manager.params.current_epoch = epoch + 1
 
         # compute number of batches in one epoch (one full pass over the training set)
         train(model, manager)
 
+        if (epoch + 1) % manager.params.eval_freq == 0:
+            evaluate(model, manager)
+            
         # Save latest model, or best model weights accroding to the params.major_metric
         manager.check_best_save_last_checkpoints(latest_freq_val=999, latest_freq=1)
 
-        evaluate(model, manager)
         
 
 if __name__ == '__main__':
