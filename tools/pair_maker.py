@@ -51,32 +51,43 @@ class PairMaker:
         return
     
     def make_pair(self):
-        # vid = '20230227114304'
-        # vid = '20230227114457'
-        # vid = '20230227114328'
-        # vid = '20230227113937'
-        vid = '20230227113856' # zhuan
-        # sign = [['f_l', 'l_f'], ['b_l', 'l_b'], ['r_b', 'b_r']]
-        # sign = [['f_l', 'l_f'], ['r_b', 'b_r']]
-        # sign = [['f_l', 'l_f']]
-        # sign = [['l_b', 'b_r'], ['r_b', 'b_r']]
-        sign = [['f_l', 'l_f'], ['l_b', 'b_r']]
-        bp = '/home/data/lwb/data/dybev/b16'
-        svp = bp + f'/train_{vid}.txt'
-        if os.path.exists(svp):
-            os.remove(svp)
-        f = open(svp, 'a+')
-        # fs, fe = 0, 20
-        # fs, fe = 100, 110
-        # fs, fe = 0, 13
-        fs, fe = 0, 30
-        for i in range(fs, fe + 1):
-            index = [[i, i], [i, i+1]]
-            for k1 in index:
-                for k2 in sign:
-                    n1 = f'{vid}/{vid}_{k1[0]}_{k2[0]}.jpg'
-                    n2 = f'{vid}/{vid}_{k1[1]}_{k2[1]}.jpg'
-                    f.write(n1 + ' ' + n2 + '\n')
+        vids = [
+            '20230227114304',
+            '20230227114457',
+            '20230227114328',
+            '20230227113937',
+            '20230227113856', # zhuan
+        ] 
+        signs = [
+            [['f_l', 'l_f'], ['b_l', 'l_b'], ['r_b', 'b_r']],
+            [['f_l', 'l_f'], ['r_b', 'b_r']],
+            [['f_l', 'l_f']],
+            [['l_b', 'b_l'], ['r_b', 'b_r']],
+            [['f_l', 'l_f'], ['l_b', 'b_l']],
+        ]
+        fs_fe = [
+            [0, 20],
+            [100, 110],
+            [0, 13],
+            [0, 10],
+            [0, 30],
+        ]
+        for m in range(len(vids)):
+            vid = vids[m]
+            bp = '/home/data/lwb/data/dybev/b16'
+            svp = bp + f'/train_{vid}.txt'
+            if os.path.exists(svp):
+                os.remove(svp)
+            f = open(svp, 'a+')
+            fs, fe = fs_fe[m]
+            sign = signs[m]
+            for i in range(fs, fe + 1):
+                index = [[i, i], [i, i+1]]
+                for k1 in index:
+                    for k2 in sign:
+                        n1 = f'{vid}/{vid}_{k1[0]}_{k2[0]}.jpg'
+                        n2 = f'{vid}/{vid}_{k1[1]}_{k2[1]}.jpg'
+                        f.write(n1 + ' ' + n2 + '\n')
         f.close()
         pass
     
@@ -112,6 +123,6 @@ if __name__ == "__main__":
     # import ipdb
     # ipdb.set_trace()
     pm = PairMaker()
-    # pm.make_pair()
+    pm.make_pair()
     pm.merge_txt()
     pass

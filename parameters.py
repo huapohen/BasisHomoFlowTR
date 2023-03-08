@@ -16,6 +16,7 @@ def train_config(cfg):
     cfg.exp_description += ' outdoor '
     cfg.camera_list = ['front']
     cfg.train_batch_size = 8
+    # cfg.eval_batch_size = 2
     cfg.eval_freq = 100
     # cfg.pair_loss_type = 'front_first'
     cfg = continue_train(cfg)

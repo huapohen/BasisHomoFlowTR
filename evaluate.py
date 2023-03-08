@@ -163,7 +163,8 @@ def eval_save_result(save_file, save_name, manager, k, j, i, m):
     if not os.path.exists(save_dir_gif):
         os.makedirs(save_dir_gif)
 
-    save_dir_gif_epoch = os.path.join(save_dir_gif, str(manager.epoch_val))
+    # save_dir_gif_epoch = os.path.join(save_dir_gif, str(manager.epoch_val))
+    save_dir_gif_epoch = os.path.join(save_dir_gif)
     if k == 0 and j==0 and i==0 and m==0:
         if os.path.exists(save_dir_gif_epoch):
             shutil.rmtree(save_dir_gif_epoch)
