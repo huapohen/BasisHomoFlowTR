@@ -14,7 +14,7 @@ class HomoData(Dataset):
         self.mode = mode
         self.mean_I = np.array([118.93, 113.97, 102.60]).reshape(1, 1, 3)
         self.std_I = np.array([69.85, 68.81, 72.45]).reshape(1, 1, 3)
-        self.crop_size = params.crop_size_dybev
+        self.crop_size = params.crop_size_outdoor
         self.rho = params.rho_dybev
         self.normalize = True
         self.gray = True

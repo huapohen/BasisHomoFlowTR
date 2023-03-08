@@ -15,8 +15,8 @@ import torch
 from torch.autograd import Variable
 from tqdm import tqdm
 
-# import dataset.data_loader_dybev as data_loader_dybev
-import dataset.data_loader as data_loader
+# import dataset.data_loader_dybev as data_loader
+import dataset.data_loader_outdoor as data_loader
 import model.net as net
 from common import utils
 from loss.losses import compute_losses, compute_eval_results
@@ -270,7 +270,6 @@ def run_all_exps(exp_id):
     logging.info("Creating the dataset...")
 
     # Fetch dataloaders
-    # dataloaders = data_loader_dybev.fetch_dataloader(params)
     dataloaders = data_loader.fetch_dataloader(params)
 
     # Define the model and optimizer

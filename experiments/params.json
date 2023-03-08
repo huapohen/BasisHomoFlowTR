@@ -60,6 +60,10 @@
     ],
     "rho_dybev": 8,
     "crop_size_dybev": [
+        288,
+        288
+    ],
+    "crop_size_outdoor": [
         160,
         160
     ],

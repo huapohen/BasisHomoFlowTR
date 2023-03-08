@@ -13,8 +13,8 @@ from tqdm import tqdm
 
 # from apex import amp
 
-# import dataset.data_loader_dybev as data_loader_dybev
-import dataset.data_loader as data_loader
+# import dataset.data_loader_dybev as data_loader
+import dataset.data_loader_outdoor as data_loader
 import model.net as net
 
 from common import utils
@@ -213,7 +213,6 @@ if __name__ == '__main__':
     logger.info("Loading the train datasets from {}".format(params.train_data_dir))
 
     # fetch dataloaders
-    # dataloaders = data_loader_dybev.fetch_dataloader(params)
     dataloaders = data_loader.fetch_dataloader(params)
 
     # model
