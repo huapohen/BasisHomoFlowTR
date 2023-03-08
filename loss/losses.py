@@ -47,10 +47,10 @@ def geometricDistance(correspondence, flow):
 
 
 def geometricDistance_v2(i, inp, out, scale_x=1.0, scale_y=1.0):
-    pts_1 = inp['points_1'][i*2:i*2+2]
+    pts_1 = inp['points_1']
     ones = torch.ones_like(pts_1)
     pts_1 = torch.cat([pts_1, ones[:, :, :1]], -1)
-    pts_2 = inp['points_2'][i*2:i*2+2]
+    pts_2 = inp['points_2']
     homo_21_inv = torch.inverse(out['H_flow'][i][0])
     homo_12_inv = torch.inverse(out['H_flow'][i][1])
     # ipdb.set_trace()

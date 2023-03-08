@@ -68,5 +68,6 @@
         160
     ],
     "is_dybev": true,
-    "is_debug_dataloader": false
+    "is_debug_dataloader": false,
+    "set_name": "b16"
 }
