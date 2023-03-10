@@ -116,15 +116,12 @@ class Net(nn.Module):
             fea1_patch = self.share_feature(x1_patch)
             fea2_patch = self.share_feature(x2_patch)
 
-            x = torch.cat([fea1_patch, fea2_patch], dim=1)
-            x = torch.cat([fea2_patch, fea1_patch], dim=1)
+            x1 = torch.cat([fea1_patch, fea2_patch], dim=1)
+            x2 = torch.cat([fea2_patch, fea1_patch], dim=1)
             
             if self.params.forward_version == 'basis':
-                fea1_patch = self.share_feature(x1_patch)
-                fea2_patch = self.share_feature(x2_patch)
-                weight_f = self.nets_forward(x).reshape(-1, 8, 1)
-                weight_b = self.nets_forward(x).reshape(-1, 8, 1)
-                # ipdb.set_trace()
+                weight_f = self.nets_forward(x1).reshape(-1, 8, 1)
+                weight_b = self.nets_forward(x2).reshape(-1, 8, 1)
                 H_flow_f = (self.basis * weight_f).sum(1).reshape(*b2hw)
                 H_flow_b = (self.basis * weight_b).sum(1).reshape(*b2hw)
                 img1_warp = get_warp_flow(x1_full, H_flow_b, start)  # _b  2<-1
@@ -133,8 +130,8 @@ class Net(nn.Module):
                 output["H_flow"].append([H_flow_f, H_flow_b])
                 
             elif self.params.forward_version == 'offset':
-                offset_1 = self.nets_forward(x)
-                offset_2 = self.nets_forward(x)
+                offset_1 = self.nets_forward(x1)
+                offset_2 = self.nets_forward(x2)
                 points_2_pred = self.corners + offset_1
                 points_1_pred = self.corners + offset_2
                 points_1 = input['points_1'][:, i*2:i*2+4].contiguous()
