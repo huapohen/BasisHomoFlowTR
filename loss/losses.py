@@ -188,7 +188,7 @@ def compute_eval_results(data_batch, output_batch, params):
             err = geometricDistance_offset(i, data_batch, output_batch, scale_x, scale_y)
         elif params.forward_version == 'basis':
             H_flow_f, H_flow_b = output_batch['H_flow'][i]
-            ipdb.set_trace()
+            # ipdb.set_trace()
             # H_flow_f = upsample2d_flow_as(H_flow_f, imgs_full, mode="bilinear", if_rate=True)
             H_flow_b = upsample2d_flow_as(H_flow_b, imgs_full, mode="bilinear", if_rate=True)
             img1_full_warp = get_warp_flow(img_1_full, H_flow_b, 0)
