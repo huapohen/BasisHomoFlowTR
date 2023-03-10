@@ -25,10 +25,17 @@ class Net(nn.Module):
         self.inplanes = 64
         self.layers = [3, 4, 6, 3]
         self.basis_vector_num = 16
-        ch, cw = params.crop_size
+        if params.set_name == 'b16':
+            self.crop_size = params.crop_size_outdoor
+        elif params.set_name == 'b07':
+            self.crop_size = params.crop_size_dybev
+        else:
+            self.crop_size = params.crop_size
+        ch, cw = self.crop_size
         corners = np.array([[0, 0], [cw, 0], [0, ch], [cw, ch]], dtype=np.float32)
         # The buffer is the same as the Parameter except that the gradient is not update.
         self.register_buffer('corners', torch.from_numpy(corners.reshape(1, 4, 2)))
+        self.basis = gen_basis(ch, cw).unsqueeze(0).reshape(1, 8, -1)
         self.share_feature = ShareFeature(1)
         self.conv1 = nn.Conv2d(2, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
@@ -89,7 +96,8 @@ class Net(nn.Module):
 
     def forward(self, input):
         b, c, ph, pw = input['imgs_gray_patch'].shape
-        
+        b2hw = [b, 2, ph, pw]
+        start = input['start']
         output = {
             'offset': [],
             'points_pred': [],
@@ -110,24 +118,36 @@ class Net(nn.Module):
 
             x = torch.cat([fea1_patch, fea2_patch], dim=1)
             x = torch.cat([fea2_patch, fea1_patch], dim=1)
-            offset_1 = self.nets_forward(x)
-            offset_2 = self.nets_forward(x)
-
-            points_2_pred = self.corners + offset_1
-            points_1_pred = self.corners + offset_2
             
-            points_1 = input['points_1'][:, i*2:i*2+4].contiguous()
-            points_2 = input['points_2'][:, i*2:i*2+4].contiguous()
-            homo_21 = dlt_homo(points_2_pred, points_1)
-            homo_12 = dlt_homo(points_1_pred, points_2)
-
-            img1_warp = warp_image_from_H(homo_21, x1_full, b, ph, pw)
-            img2_warp = warp_image_from_H(homo_12, x2_full, b, ph, pw)
+            if self.params.forward_version == 'basis':
+                fea1_patch = self.share_feature(x1_patch)
+                fea2_patch = self.share_feature(x2_patch)
+                weight_f = self.nets_forward(x).reshape(-1, 8, 1)
+                weight_b = self.nets_forward(x).reshape(-1, 8, 1)
+                # ipdb.set_trace()
+                H_flow_f = (self.basis * weight_f).sum(1).reshape(*b2hw)
+                H_flow_b = (self.basis * weight_b).sum(1).reshape(*b2hw)
+                img1_warp = get_warp_flow(x1_full, H_flow_b, start)  # _b  2<-1
+                img2_warp = get_warp_flow(x2_full, H_flow_f, start)  # _f  1<-2
+                output["img_warp"].append([img1_warp, img2_warp])
+                output["H_flow"].append([H_flow_f, H_flow_b])
+                
+            elif self.params.forward_version == 'offset':
+                offset_1 = self.nets_forward(x)
+                offset_2 = self.nets_forward(x)
+                points_2_pred = self.corners + offset_1
+                points_1_pred = self.corners + offset_2
+                points_1 = input['points_1'][:, i*2:i*2+4].contiguous()
+                points_2 = input['points_2'][:, i*2:i*2+4].contiguous()
+                homo_21 = dlt_homo(points_2_pred, points_1)
+                homo_12 = dlt_homo(points_1_pred, points_2)
+                img1_warp = warp_image_from_H(homo_21, x1_full, b, ph, pw)
+                img2_warp = warp_image_from_H(homo_12, x2_full, b, ph, pw)
             
-            output['offset'].append([offset_1, offset_2])
-            output['points_pred'].append([points_1_pred, points_2_pred])
-            output['H_flow'].append([homo_21, homo_12])
-            output["img_warp"].append([img1_warp, img2_warp])
+                output['offset'].append([offset_1, offset_2])
+                output['points_pred'].append([points_1_pred, points_2_pred])
+                output['H_flow'].append([homo_21, homo_12])
+                output["img_warp"].append([img1_warp, img2_warp])
         
         return output
     

@@ -16,8 +16,10 @@ class HomoData(Dataset):
         self.std_I = np.array([69.85, 68.81, 72.45]).reshape(1, 1, 3)
         if params.set_name == 'b16':
             self.crop_size = params.crop_size_outdoor
-        else:
+        elif params.set_name == 'b07':
             self.crop_size = params.crop_size_dybev
+        else:
+            raise
         self.rho = params.rho_dybev
         self.normalize = True
         self.gray = True
@@ -79,6 +81,7 @@ class HomoData(Dataset):
         imgs_ori = np.concatenate(imgs_ori_list, axis=2)
         
         data_dict = {}
+        data_dict['start'] = torch.tensor([px, py]).reshape(2, 1, 1).float()
         data_dict["imgs_ori"] = torch.tensor(imgs_ori).permute(2, 0, 1).float()
         data_dict["imgs_gray_full"] = torch.tensor(full).permute(2, 0, 1).float()
         data_dict["imgs_gray_patch"] = torch.tensor(patch).permute(2, 0, 1).float()

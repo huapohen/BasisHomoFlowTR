@@ -20,6 +20,7 @@ def train_config(cfg):
     cfg.train_batch_size = 8
     # cfg.eval_batch_size = 2
     cfg.eval_freq = 100
+    cfg.forward_version = 'basis'
     # cfg.pair_loss_type = 'front_first'
     cfg = continue_train(cfg)
     # cfg.gpu_used = '0_1_2_3_4_5_6_7' # use 8 GPUs

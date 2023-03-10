@@ -69,5 +69,6 @@
     ],
     "is_dybev": true,
     "is_debug_dataloader": false,
-    "set_name": "b16"
+    "set_name": "b16",
+    "forward_version": "offset"
 }
