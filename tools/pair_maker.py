@@ -57,6 +57,10 @@ class PairMaker:
             '20230227114328',
             '20230227113937',
             '20230227113856', # zhuan
+            # 新增：
+            '20230227113709',
+            '20230227113746',
+            # '20230227113817',
         ] 
         signs = [
             [['f_l', 'l_f'], ['b_l', 'l_b'], ['r_b', 'b_r']],
@@ -64,6 +68,9 @@ class PairMaker:
             [['f_l', 'l_f']],
             [['l_b', 'b_l'], ['r_b', 'b_r']],
             [['f_l', 'l_f'], ['l_b', 'b_l']],
+            #  ['f_l', 'l_f'], ['f_r', 'r_f'], ['b_l', 'l_b'], ['b_r', 'r_b']
+            [['f_l', 'l_f']],
+            [['f_r', 'r_f'], ['b_l', 'l_b'], ['b_r', 'r_b']]
         ]
         fs_fe = [
             [0, 20],
@@ -71,8 +78,12 @@ class PairMaker:
             [0, 13],
             [0, 10],
             [0, 30],
+            #
+            [0, 273],
+            [0, 273],
         ]
-        for m in range(len(vids)):
+        start_id = 5
+        for m in range(start_id, len(vids)):
             vid = vids[m]
             bp = '/home/data/lwb/data/dybev/b16'
             svp = bp + f'/train_{vid}.txt'
@@ -124,5 +135,5 @@ if __name__ == "__main__":
     # ipdb.set_trace()
     pm = PairMaker()
     pm.make_pair()
-    pm.merge_txt()
+    # pm.merge_txt()
     pass

@@ -1,5 +1,6 @@
 import cv2
 import ipdb
+import imageio
 import numpy as np
 import math
 import json
@@ -208,24 +209,45 @@ class Fev2AVM(object):
 
         return np.ascontiguousarray(img)
 
-    def merge2avm(self, inputs):
+    def merge2avm(self, inputs, is_add_mask=True):
         for idx, input in enumerate(inputs):
             inputs[idx] = input.astype(np.float32)
         front, back, left, right = inputs
-
-        front = front * self.bev_mask["front"]
-        back = np.ascontiguousarray(back[::-1, ::-1]) * self.bev_mask["back"]
-        left = self.img_rot90(left, isclock = False) * self.bev_mask["left"]
-        right = self.img_rot90(right, isclock = True) * self.bev_mask["right"]
-        
+        back = np.ascontiguousarray(back[::-1, ::-1])
+        left = self.img_rot90(left, isclock = False)
+        right = self.img_rot90(right, isclock = True)
         avm_w, avm_h = self.avm_size
-        out = np.zeros((avm_h, avm_w, front.shape[2]), dtype = np.float32)
-        out[:front.shape[0]] += front
-        out[avm_h - back.shape[0]:] += back
-        out[:, :left.shape[1]] += left
-        out[:, avm_w - right.shape[1]:] += right
-        out = np.clip(out, 0, 255).astype(np.uint8)
-
+        
+        if is_add_mask:
+            front = front * self.bev_mask["front"]
+            back = back * self.bev_mask["back"]
+            left = left * self.bev_mask["left"]
+            right = right * self.bev_mask["right"]
+            
+            out = np.zeros((avm_h, avm_w, front.shape[2]), dtype = np.float32)
+            out[:front.shape[0]] += front
+            out[avm_h - back.shape[0]:] += back
+            out[:, :left.shape[1]] += left
+            out[:, avm_w - right.shape[1]:] += right
+            out = np.clip(out, 0, 255).astype(np.uint8)
+            
+        else:
+            out1 = np.zeros((avm_h, avm_w, front.shape[2]), dtype = np.float32)
+            out1[:front.shape[0]] += front
+            out1[avm_h - back.shape[0]:] += back
+            out1[:, :left.shape[1]] += left
+            out1[:, avm_w - right.shape[1]:] += right
+            out1 = np.clip(out1, 0, 255).astype(np.uint8)
+            
+            out2 = np.zeros((avm_h, avm_w, front.shape[2]), dtype = np.float32)
+            out2[:, :left.shape[1]] += left
+            out2[:, avm_w - right.shape[1]:] += right
+            out2[:front.shape[0]] += front
+            out2[avm_h - back.shape[0]:] += back
+            out2 = np.clip(out2, 0, 255).astype(np.uint8)
+            
+            out = [out1, out2]
+    
         return out
     
     def save_pair_imgs(self, inputs, prefix):
@@ -241,19 +263,39 @@ class Fev2AVM(object):
         fb_hw = [244, 616]
         lf_hw = [880, 221]
         sz = 192
+        bevc = [
+            bevs[0][52:, 29:221],
+            bevs[2][52:244, 29:221],
+            bevs[0][52:, 395:587],
+            bevs[3][52:244, :192],
+            bevs[1][:192, 29:221],
+            bevs[2][636:828, 29:221],
+            bevs[1][:192, 395:587],
+            bevs[3][636:828, :192],
+        ]
+        bevc = [x.astype(np.uint8) for x in bevc]
         crop = {
-            'f_l': bevs[0][52:, 29:221],
-            'f_r': bevs[0][52:, 395:587],
-            'b_l': bevs[1][:192, 29:221],
-            'b_r': bevs[1][:192, 395:587],
-            'l_f': bevs[2][52:244, 29:221],
-            'l_b': bevs[2][636:828, 29:221],
-            'r_f': bevs[3][52:244, :192],
-            'r_b': bevs[3][636:828, :192]
+            'p1-f_l': bevc[0],
+            'p1-l_f': bevc[1],
+            'p2-f_r': bevc[2],
+            'p2-r_f': bevc[3],
+            'p3-b_l': bevc[4],
+            'p3-l_b': bevc[5],
+            'p4-b_r': bevc[6],
+            'p4-r_b': bevc[7],
         }
         for k, v in crop.items():
             svp = f'{prefix}_{k}.jpg'
             cv2.imwrite(svp, v)
+        gif_pair = {
+            'g1-fl': [bevc[0], bevc[1]],
+            'g2-fr': [bevc[2], bevc[3]],
+            'g3-bl': [bevc[4], bevc[5]],
+            'g4-br': [bevc[6], bevc[7]],
+        }
+        for k, v in gif_pair.items():
+            svp = f'{prefix}_{k}.gif'
+            imageio.mimsave(svp, v, 'GIF', duration=0.5)
         
         return crop
 
@@ -275,6 +317,7 @@ class Fev2AVM(object):
 
 def draw_pts(img, pt):
     cv2.circle(img, (int(pt[0]), int(pt[1])), 2, (0, 0, 255), -1)
+
 
 if __name__ == '__main__':
     import ipdb
