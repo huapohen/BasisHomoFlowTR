@@ -9,7 +9,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from model import net
-from model.util import warp_image_from_H
+from model.util import *
 from torchvision.utils import save_image
 
 
@@ -46,7 +46,7 @@ def geometricDistance(correspondence, flow):
     return error
 
 
-def geometricDistance_v2(i, inp, out, scale_x=1.0, scale_y=1.0):
+def geometricDistance_offset(i, inp, out, scale_x=1.0, scale_y=1.0):
     pts_1 = inp['points_1']
     ones = torch.ones_like(pts_1)
     pts_1 = torch.cat([pts_1, ones[:, :, :1]], -1)
@@ -171,20 +171,32 @@ def compute_eval_results(data_batch, output_batch, params):
     errs = np.zeros(batch_size)
     img1_full_warp_list = []
     
+    _h, _w = data_batch['imgs_gray_full'].shape[2:]
+    scale_x = grid_w / _w
+    scale_y = grid_h / _h
+    
     for i, camera in enumerate(params.camera_list):
         imgs_full = data_batch["imgs_ori"]
+        img_1_full = imgs_full[:, i*6:i*6+3]
+        img_2_full = imgs_full[:, i*6+3:i*6+6]
 
         bhw = (batch_size, grid_h, grid_w)
-        homo_21, homo_12 = output_batch['H_flow'][i]
-        img1_full_warp = warp_image_from_H(homo_21, imgs_full[:, i*6:i*6+3], *bhw)
-        # img2_full_warp = warp_image_from_H(homo_12, imgs_full[:, i*6+3:i*6+6], *bhw)
-        img1_full_warp_list.append(img1_full_warp)
+        if params.forward_version == 'offset':
+            homo_21, homo_12 = output_batch['H_flow'][i]
+            img1_full_warp = warp_image_from_H(homo_21, img_1_full, *bhw)
+            # img2_full_warp = warp_image_from_H(homo_12, img_2_full, *bhw)
+            err = geometricDistance_offset(i, data_batch, output_batch, scale_x, scale_y)
+        elif params.forward_version == 'basis':
+            H_flow_f, H_flow_b = output_batch['H_flow'][i]
+            H_flow_f = upsample2d_flow_as(H_flow_f, img_1_full, mode="bilinear", if_rate=True)
+            img1_full_warp = get_warp_flow(img_1_full, H_flow_b, 0)
+            # img2_full_warp = get_warp_flow(img_2_full, H_flow_f, 0)
+            err = np.float32(0)
+        else:
+            raise
         
-        _h, _w = data_batch['imgs_gray_full'].shape[2:]
-        scale_x = grid_w / _w
-        scale_y = grid_h / _h
-        err = geometricDistance_v2(i, data_batch, output_batch, scale_x, scale_y)
         # ipdb.set_trace()
+        img1_full_warp_list.append(img1_full_warp)
         errs += err
 
     eval_results = {}

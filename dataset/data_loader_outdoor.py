@@ -35,7 +35,8 @@ class HomoData(Dataset):
 
         random.seed(params.seed)
         np.random.seed(params.seed)
-        random.shuffle(self.data_all)
+        if mode == 'train':
+            random.shuffle(self.data_all)
 
         num = int(total_sample * params.train_data_ratio)
         self.data_infor = self.data_all[:num]

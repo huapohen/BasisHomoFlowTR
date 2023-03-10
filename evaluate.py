@@ -79,7 +79,7 @@ def evaluate(model, manager):
                 # ipdb.set_trace()
                 bs = len(fnames)
                 for j in range(bs):
-                    err = err_avg[j] * 1e-8
+                    err = err_avg[j]
                     MSE_BEV.append(err)
 
                     if k % params.save_iteration == 0 and params.is_save_gif:
@@ -94,7 +94,7 @@ def evaluate(model, manager):
                             img1_full_warp = cv2.cvtColor(img1_full_warp, cv2.COLOR_BGR2RGB)
 
                             ind = f'{k*bs+j+1}_b{k}_{j}'
-                            prefix = f'{ind}_{fnames[j]}_{camera}_err:{err:.4f}'
+                            prefix = f'{ind}_{fnames[j]}_{camera}_err_{err:.4f}'
                             print(prefix)
                             
                             save_file = [img2_full, img1_full_warp]

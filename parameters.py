@@ -30,7 +30,7 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 15
+    cfg.exp_id = 16
     cfg.gpu_used = '0'
     # cfg.is_debug_dataloader = True
     cfg.eval_batch_size = 8
