@@ -167,7 +167,9 @@ def compute_losses_v0(output, input, params):
 
 
 def compute_eval_results(data_batch, output_batch, params):
+    imgs_full = data_batch["imgs_ori"]
     batch_size, _, grid_h, grid_w = data_batch["imgs_ori"].shape
+    bhw = (batch_size, grid_h, grid_w)
     errs = np.zeros(batch_size)
     img1_full_warp_list = []
     
@@ -176,11 +178,9 @@ def compute_eval_results(data_batch, output_batch, params):
     scale_y = grid_h / _h
     
     for i, camera in enumerate(params.camera_list):
-        imgs_full = data_batch["imgs_ori"]
         img_1_full = imgs_full[:, i*6:i*6+3]
         img_2_full = imgs_full[:, i*6+3:i*6+6]
 
-        bhw = (batch_size, grid_h, grid_w)
         if params.forward_version == 'offset':
             homo_21, homo_12 = output_batch['H_flow'][i]
             img1_full_warp = warp_image_from_H(homo_21, img_1_full, *bhw)
