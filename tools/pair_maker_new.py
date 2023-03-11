@@ -63,6 +63,9 @@ class PairMaker:
             '20230302160522': [[], []],
             '20230302160555': [[], []],
         }
+        
+        # ['f_l', 'l_f'], ['f_r', 'r_f'], ['b_l', 'l_b'], ['b_r', 'r_b']
+        self.pair_id = {'f_l': 'p1', 'f_r': 'p2', 'b_l': 'p3', 'b_r': 'p4'}
                 
     
     def make_pair(self):
@@ -82,14 +85,14 @@ class PairMaker:
                 index = [[i, i], [i, i+1]]
                 for k1 in index:
                     for k2 in sign:
-                        n1 = f'{vid}/{vid}_{k1[0]}_{k2[0]}.jpg'
-                        n2 = f'{vid}/{vid}_{k1[1]}_{k2[1]}.jpg'
+                        n1 = f'{vid}/{vid}_{k1[0]}_{self.pair_id[k2[0]]}-{k2[0]}.jpg'
+                        n2 = f'{vid}/{vid}_{k1[1]}_{self.pair_id[k2[0]]}-{k2[1]}.jpg'
                         f.write(n1 + ' ' + n2 + '\n')
         f.close()
         pass
     
     def merge_txt(self):
-        bp = '//home/data/lwb/data/dybev/b16'
+        bp = '/home/data/lwb/data/dybev/b16'
         name_list = []
         for txt in self.valid_list:
             with open(f'{bp}/train_{txt}.txt', 'r') as f:
