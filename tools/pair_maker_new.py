@@ -71,7 +71,7 @@ class PairMaker:
             if len(info[0]) == 0:
                 continue
             self.valid_list.append(vid)
-            bp = '/data/pair_id'
+            bp = '/home/data/lwb/data/dybev/b16'
             svp = bp + f'/train_{vid}.txt'
             if os.path.exists(svp):
                 os.remove(svp)
@@ -89,7 +89,7 @@ class PairMaker:
         pass
     
     def merge_txt(self):
-        bp = '/data/pair_id'
+        bp = '//home/data/lwb/data/dybev/b16'
         name_list = []
         for txt in self.valid_list:
             with open(f'{bp}/train_{txt}.txt', 'r') as f:

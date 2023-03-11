@@ -7,7 +7,7 @@ from yacs.config import CfgNode as CN
 
 def train_config(cfg):
     cfg.exp_id = 20
-    cfg.gpu_used = '0'
+    cfg.gpu_used = '2'
     cfg.train_data_ratio = 1.0
     cfg.num_workers = 8
     cfg.set_name = 'b16'
@@ -17,9 +17,8 @@ def train_config(cfg):
     cfg.exp_description = f' exp_{cfg.exp_id}: '
     cfg.exp_description += ' outdoor '
     cfg.camera_list = ['front']
-    cfg.train_batch_size = 8
+    cfg.train_batch_size = 16
     # cfg.eval_batch_size = 2
-    cfg.eval_freq = 100
     cfg.forward_version = 'basis'
     # cfg.forward_version = 'offset'
     # cfg.pair_loss_type = 'front_first'
