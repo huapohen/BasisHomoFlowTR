@@ -14,13 +14,12 @@ from easydict import EasyDict
 
 warnings.filterwarnings("ignore")
 
-torch.backends.cuda.matmul.allow_tf32 = False
 
 
 class Net(nn.Module):
     def __init__(self, params):
-
-        super(Net, self).__init__()
+        super().__init__()
+        torch.backends.cuda.matmul.allow_tf32 = False
         self.params = params
         self.inplanes = 64
         self.layers = [3, 4, 6, 3]

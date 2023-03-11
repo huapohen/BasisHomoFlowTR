@@ -24,6 +24,8 @@ from common.manager import Manager
 from parameters import get_config, dictToObj
 from easydict import EasyDict
 
+torch.backends.cuda.matmul.allow_tf32 = False
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
