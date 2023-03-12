@@ -4,6 +4,7 @@ import os
 import sys
 import ipdb
 import time
+import torch
 import shutil
 import argparse
 import itertools
@@ -13,6 +14,8 @@ from subprocess import check_call
 
 from common import utils
 from experiment_dispatcher import dispatcher, tmux
+
+torch.backends.cuda.matmul.allow_tf32 = False
 
 PYTHON = sys.executable
 parser = argparse.ArgumentParser()
