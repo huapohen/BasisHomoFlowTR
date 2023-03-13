@@ -29,8 +29,8 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 16
-    cfg.gpu_used = '0'
+    cfg.exp_id = 20
+    cfg.gpu_used = '5'
     # cfg.is_debug_dataloader = True
     cfg.eval_batch_size = 8
     cfg.num_workers = 2

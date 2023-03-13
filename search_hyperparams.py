@@ -106,9 +106,9 @@ def launch_training_job(
             f'\t `Ctrl + D`: end the current subwindow \n'
             f'\t `Ctrl + B D`: exit the window and keep the taks running\n'
         )
-        time.sleep(5)
-        check_call(f'tmux ls', shell=True)
         time.sleep(3)
+        check_call(f'tmux ls', shell=True)
+        time.sleep(2)
         check_call(f'tmux attach -t {start_id}', shell=True)
 
 

@@ -10,6 +10,7 @@ import imageio
 import logging
 import argparse
 import numpy as np
+from ipdb import set_trace as ip
 
 import torch
 from torch.autograd import Variable
@@ -63,6 +64,7 @@ def evaluate(model, manager):
     MSE_BEV = []
     
     kpr_list = []
+    loss_list = []
 
     with torch.no_grad():
         # compute metrics over the dataset
@@ -75,6 +77,8 @@ def evaluate(model, manager):
                 fnames = data_batch["frames_name"]
                 data_batch = utils.tensor_gpu(data_batch)
                 output_batch = model(data_batch)
+                losses = compute_losses(output_batch, data_batch, manager.params)
+                loss_list.append(losses['total'].item())
                 eval_results = compute_eval_results(data_batch, output_batch, params)
                 img1s_full_warp = eval_results["img1_full_warp"]
                 err_avg = eval_results["errs"]
@@ -118,7 +122,7 @@ def evaluate(model, manager):
                 # kpr_list.append(prt_str)
                 # t.set_description(prt_str)
                 # t.update()
-        
+        print(f'loss: {np.mean(np.array(loss_list)):.4f}')
         kpr_dir = os.path.join(params.model_dir, 'kpr')
         os.makedirs(kpr_dir, exist_ok=True)
         if 'current_epoch' not in vars(params):

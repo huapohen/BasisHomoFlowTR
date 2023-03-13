@@ -28,7 +28,8 @@ class HomoData(Dataset):
         
         base_path = '/home/data/lwb/data/dybev/'
         self.data_dir = os.path.join(base_path, params.set_name)
-        path = os.path.join(self.data_dir, f'{mode}.txt')
+        # path = os.path.join(self.data_dir, f'{mode}.txt')
+        path = os.path.join(self.data_dir, f'train.txt')
         
         self.data_all = open(path, 'r').readlines()
         total_sample = len(self.data_all)

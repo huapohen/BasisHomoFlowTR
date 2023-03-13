@@ -110,6 +110,8 @@ def compute_losses(output, input, params):
         # total_loss += photo_loss_f + photo_loss_b + photo_loss * 1e-8
         
     # gt_photo_error: b16 = 0.77   b07 = 0.25
+    # train: gt 0.5862 vs pd 0.4665
+    # test:  gt 0.6544 vs pd 0.5836
     losses['total'] = total_loss / len(params.camera_list)
     return losses
 
