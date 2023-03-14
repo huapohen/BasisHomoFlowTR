@@ -26,7 +26,8 @@ def photo_loss_function(diff, q, averge=True):
     if averge:
         loss_mean = diff.mean()
     else:
-        loss_mean = diff.sum()
+        # loss_mean = diff.sum()
+        loss_mean = diff
     return loss_mean
 
 
@@ -93,26 +94,41 @@ def camera_loss_sequnce():
 def compute_losses(output, input, params):
     losses = {}
     imgs_patch = input['imgs_gray_patch']
-    total_loss = 0
+    edge_loss = 0
+    photo_loss = 0
+    
     for i, camera in enumerate(params.camera_list):
         img1_warp, img2_warp = output["img_warp"][i]
         img1 = imgs_patch[:, i*2:i*2+1]
         img2 = imgs_patch[:, i*2+1:i*2+2]
         im_diff_fw = img1 - img2_warp
         im_diff_bw = img2 - img1_warp
-        # im_diff_fw = img1 - img2
-        # im_diff_bw = img2 - img1
-        # im_diff = img2 - img1_warp
         photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
         photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
-        # photo_loss = photo_loss_function(diff=im_diff, q=1, averge=True)
-        total_loss += photo_loss_f + photo_loss_b
-        # total_loss += photo_loss_f + photo_loss_b + photo_loss * 1e-8
+        photo_loss += photo_loss_f + photo_loss_b
         
+        if params.is_add_edge_loss:
+            edge_diff_f1 = (im_diff_fw[:, :, 1:-1, 1:-1] - im_diff_fw[:, :, 2:, 1:-1]).abs()
+            edge_diff_f2 = (im_diff_fw[:, :, 1:-1, 1:-1] - im_diff_fw[:, :, 1:-1, 2:]).abs()
+            edge_loss_f = edge_diff_f1 + edge_diff_f2
+            edge_diff_b1 = (im_diff_bw[:, :, 1:-1, 1:-1] - im_diff_bw[:, :, 2:, 1:-1]).abs()
+            edge_diff_b2 = (im_diff_bw[:, :, 1:-1, 1:-1] - im_diff_bw[:, :, 1:-1, 2:]).abs()
+            edge_loss_b = edge_diff_b1 + edge_diff_b2
+            edge_loss_f = edge_loss_f.sum()  / (edge_loss_f > 0.01).sum()
+            edge_loss_b = edge_loss_b.sum()  / (edge_loss_b > 0.01).sum() 
+            edge_loss += edge_loss_f + edge_loss_b
+        
+    # 88_b10_7_20230302155547_65_p3-b_l_vs_66_p3-l_b_front_err_0.0000_pred
+    # 92_b11_3_20230302155547_14_p3-b_l_vs_15_p3-l_b_front_err_0.0000_pred    
+    
     # gt_photo_error: b16 = 0.77   b07 = 0.25
     # train: gt 0.5862 vs pd 0.4665
     # test:  gt 0.6544 vs pd 0.5836
-    losses['total'] = total_loss / len(params.camera_list)
+    num_cam = len(params.camera_list)
+    losses['photo'] = photo_loss / num_cam
+    if params.is_add_edge_loss:
+        losses['edge'] = edge_loss / num_cam
+    losses['total'] = (photo_loss + edge_loss) / num_cam
     return losses
 
 

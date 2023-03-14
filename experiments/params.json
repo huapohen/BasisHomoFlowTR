@@ -70,5 +70,9 @@
     "is_dybev": true,
     "is_debug_dataloader": false,
     "set_name": "b16",
-    "forward_version": "offset"
+    "forward_version": "offset",
+    "dataset_nature_ratio": 0.01,
+    "is_include_dataset_nature": true,
+    "is_balance": false,
+    "is_add_edge_loss": false
 }

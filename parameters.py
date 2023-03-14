@@ -6,10 +6,16 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 20
-    cfg.gpu_used = '2'
+    cfg.exp_id = 25
+    cfg.gpu_used = '6'
     cfg.train_data_ratio = 1.0
+    cfg.dataset_nature_ratio = 0.02
     cfg.num_workers = 8
+    cfg.crop_size_outdoor = [320, 576]
+    cfg.rho_dybev = 16
+    cfg.learning_rate = 1e-4
+    cfg.gamma = 0.8
+    cfg.num_epochs = 20
     cfg.set_name = 'b16'
     # cfg.set_name = 'b07'
     cfg.train_data_dir = f'/home/data/lwb/data/dybev/{cfg.set_name}'
@@ -29,13 +35,16 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 20
+    cfg.exp_id = 24
     cfg.gpu_used = '5'
+    cfg.is_include_dataset_nature = True
+    # cfg.is_include_dataset_nature = False
+    cfg.dataset_nature_ratio = 0.02
     # cfg.is_debug_dataloader = True
-    cfg.eval_batch_size = 8
-    cfg.num_workers = 2
+    cfg.eval_batch_size = 16
+    cfg.num_workers = 8
     # cfg.is_vis_and_exit = True
-    cfg.save_iteration = 1
+    cfg.save_iteration = 10000
     cfg.is_save_gif = True
     # cfg.eval_visualize_save = False
     # cfg.restore_file = 'test_model_best.pth'

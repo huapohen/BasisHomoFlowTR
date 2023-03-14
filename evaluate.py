@@ -82,11 +82,13 @@ def evaluate(model, manager):
                 eval_results = compute_eval_results(data_batch, output_batch, params)
                 img1s_full_warp = eval_results["img1_full_warp"]
                 err_avg = eval_results["errs"]
-                # ipdb.set_trace()
+                # err_avg = np.float32(0)
                 bs = len(fnames)
                 for j in range(bs):
-                    err = err_avg[j]
+                    # break
+                    err = round(err_avg[j], 4)
                     MSE_BEV.append(err)
+                    prt_err = f'pts-err_{err}' if err != 0 else ''
 
                     if k % params.save_iteration == 0 and params.is_save_gif:
                         for i, camera in enumerate(params.camera_list):
@@ -100,7 +102,9 @@ def evaluate(model, manager):
                             img1_full_warp = cv2.cvtColor(img1_full_warp, cv2.COLOR_BGR2RGB)
 
                             ind = f'{k*bs+j+1}_b{k}_{j}'
-                            prefix = f'{ind}_{fnames[j]}_{camera}_err_{err:.4f}'
+                            prefix = f'{ind}_{fnames[j]}_{camera}_{prt_err}'
+                            if params.save_iteration == bs and bs == 1:
+                                prefix = f"loss-{losses['total'].item():.4f}, " + prefix
                             print(prefix)
                             
                             save_file = [img2_full, img1_full_warp]
@@ -115,14 +119,17 @@ def evaluate(model, manager):
                             save_name = f'{prefix}_ori'
                             eval_save_result(save_file, save_name, manager, k, j, i, 1)
                             # eval_save_result(save_file, save_name, manager, k, j, i, 0)
-
-                            kpr_list.append(f'{err:.4f} {prefix}')
+    
+                            kpr_list.append(f'{prt_err[8:]} {prefix}')
                             
                 # prt_str = f"{k}:{np.mean(err_avg):.4f} "
                 # kpr_list.append(prt_str)
                 # t.set_description(prt_str)
                 # t.update()
-        print(f'loss: {np.mean(np.array(loss_list)):.4f}')
+        loss_avg = round(np.mean(np.array(loss_list)), 4)
+        prt_loss = f'loss_avg: {loss_avg} \n'
+        print(prt_loss)
+        kpr_list = [prt_loss] + kpr_list
         kpr_dir = os.path.join(params.model_dir, 'kpr')
         os.makedirs(kpr_dir, exist_ok=True)
         if 'current_epoch' not in vars(params):
@@ -135,6 +142,20 @@ def evaluate(model, manager):
         kpr.write(('\n').join(kpr_list))
         kpr.close()
 
+        # exp_20 : 1000个epoch，只有b16数据，190x190 crop 160x160, random_crop边界值: 8 pix
+        # exp_22 ：20个epoch，增加论文数据集，比例：3500+ vs 16000, 360x640 crop 320x576, 16 pix
+        
+        # exp_20: train loss_avg: b16=0.4706
+        # exp_22: train loss_avg: b16=0.5367 vs paper=0.1761, total_loss_avg=0.2460
+        
+        # exp_20: test  loss_avg: b16=0.9070
+        # exp_22: test  loss_avg: b16=0.6342 vs paper=0.6391, total_loss_avg=0.6348
+        
+        # exp_21: 4000 nature
+        # exp_23: 8000 nature
+        
+        # exp_24: only nature 16000
+        
         MSE_BEV_avg = sum(MSE_BEV) / len(MSE_BEV)
 
         Metric = {
@@ -146,7 +167,8 @@ def evaluate(model, manager):
 
         # update data to logger
         manager.logger.info(
-            "Loss/Test epoch_{} BEV:{:.4f}. ".format(
+            "Loss/Test: {} epoch_{} BEV:{:.4f}. ".format(
+                loss_avg,
                 manager.epoch_val,
                 MSE_BEV_avg
             )
