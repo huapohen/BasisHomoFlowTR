@@ -1,6 +1,6 @@
-from __future__ import absolute_import, division, print_function
-import logging
+import ipdb
 import torch
+import imageio
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -95,22 +95,50 @@ class BasicBlock(nn.Module):
         return out
 
 
-class ShareFeature(nn.Module):
-    def __init__(self, num_chs):
+class ShareFeature_new(nn.Module):
+    def __init__(self, inc=1, ouc=1, hic=16, kernel=7):
+        super().__init__()
+        pad = int(kernel / 2)
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(inc, hic, kernel, 1, pad, bias=False),
+            nn.BatchNorm2d(hic),
+            nn.ReLU(inplace=True),
+        )
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(hic, ouc, kernel, 1, pad, bias=False),
+            nn.BatchNorm2d(ouc),
+            nn.ReLU(inplace=True),
+        )
 
-        super(ShareFeature, self).__init__()
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        return x
 
+
+class ShareFeature_new_v2(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return x
+
+
+class ShareFeature_ori(nn.Module):
+    def __init__(self, inc=1, ouc=1):
+        super().__init__()
         self.layers = nn.Sequential(
-            nn.Conv2d(num_chs, 4, kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(inc, 4, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(4),
             nn.ReLU(inplace=True),
             nn.Conv2d(4, 8, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(8),
             nn.ReLU(inplace=True),
-            nn.Conv2d(8, 1, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(1),
+            nn.Conv2d(8, ouc, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(ouc),
             nn.ReLU(inplace=True),
         )
+        # 有点浅，海水移动这种feature要多几层conv
 
     def forward(self, x):
         x = self.layers(x)
@@ -152,7 +180,6 @@ def conv(in_planes, out_planes, kernel_size=3, stride=1, dilation=1, isReLU=True
 
 def initialize_msra(modules):
 
-    logging.info("Initializing MSRA")
     for layer in modules:
         if isinstance(layer, nn.Conv2d):
             nn.init.kaiming_normal_(layer.weight)
@@ -189,7 +216,7 @@ def subspace_project(input, vectors):
 
 
 def gen_basis(h, w, qr=True, scale=True):
-
+    # multi device
     N = 8
     d_range = 10
     a_range = 0.2
@@ -602,8 +629,8 @@ def warp_image_from_H(homo, img, batch_size, h_patch, w_patch):
     grids = vgrid + flow
     # img_warp = transformer(img, grids)
     grids = grids.permute(0, 2, 3, 1)
-    grids[..., 0] = grids[...,  0] / img.shape[3] * 2 - 1
-    grids[..., 1] = grids[...,  1] / img.shape[2] * 2 - 1
+    grids[..., 0] = grids[..., 0] / img.shape[3] * 2 - 1
+    grids[..., 1] = grids[..., 1] / img.shape[2] * 2 - 1
     img_warp = F.grid_sample(img, grids, mode='bilinear')
     return img_warp
 
@@ -614,3 +641,10 @@ def warp_image_from_H_start(homo, img, batch_size, h_patch, w_patch, start=0):
     grids = vgrid + flow
     img_warp = transformer(img, grids)
     return img_warp
+
+
+def create_gif(image_list, gif_name, duration=0.5):
+    frames = []
+    for image_name in image_list:
+        frames.append(image_name)
+    imageio.mimsave(gif_name, frames, 'GIF', duration=duration)

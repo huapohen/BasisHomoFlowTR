@@ -7,6 +7,7 @@ import time
 import glob
 import json
 import random
+import imageio
 import numpy as np
 import torch
 from torch.autograd import Variable
@@ -14,7 +15,7 @@ import torch.nn.functional as F
 from common import utils
 import model.net as net
 import dataset.data_loader as data_loader
-from parameters import get_config, dictToObj
+# from parameters import get_config, dictToObj
 import ipdb
 
 ''' add this line, because GTX30 serials' default torch.matmul() on cuda is uncorrected '''
@@ -64,9 +65,14 @@ def evaluate_main(model, args, params):
     torch.set_grad_enabled(False)
     k = 0
     times = 0
-    imgs_dir = args.test_data_dir + '/AVM'
     crop_size = tuple(params.crop_size)
+    imgs_dir = args.test_data_dir + '/AVM'
+    # imgs_dir = args.test_data_dir
+    # imgs_list = glob.glob(os.path.join(imgs_dir, "*A*")) # 相同名字*_A和*_B为一个pair
+    # imgs_names = [name.split("/")[-1].split("_")[0] for name in imgs_list]
     # for name in imgs_names:
+    #     name_src = os.path.join(imgs_dir, name + "_A.jpg")
+    #     name_tg = os.path.join(imgs_dir, name + "_B.jpg")
     if 1:
         name = 'bev'
         name_src = imgs_dir + "/ori.jpg"
@@ -136,9 +142,10 @@ def evaluate_main(model, args, params):
         vis_img_ori = cv2.cvtColor(vis_img_ori, cv2.COLOR_BGR2RGB)
 
         # results saving
-        utils.create_gif(
-            [img1_full, img2_full_warp], os.path.join(result_files, name + ".gif")
-        )
+        frmes = [img1_full, img2_full_warp]
+        svname = os.path.join(result_files, name + ".gif")
+        imageio.mimsave(svname, frmes, 'GIF', duration=0.5)
+
         cv2.imwrite(os.path.join(result_files, name + "_vis.jpg"), vis_img)
         cv2.imwrite(os.path.join(result_files, name + "_vis_ori.jpg"), vis_img_ori)
         times += eval_results["times"]

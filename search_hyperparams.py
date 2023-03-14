@@ -10,20 +10,30 @@ import itertools
 import collections
 from easydict import EasyDict
 from subprocess import check_call
+import torch
 
 from common import utils
 from experiment_dispatcher import dispatcher, tmux
 
+''' add this line, because GTX30 serials' default torch.matmul() on cuda is uncorrected '''
+torch.backends.cuda.matmul.allow_tf32 = False
+
+
 PYTHON = sys.executable
 parser = argparse.ArgumentParser()
 parser.add_argument(
+    '--exp_current_dir', default='experiments',
+    help='Directory containing params.json',
+)
+parser.add_argument(
     '--exp_root_dir',
-    default='experiments',
+    default='/home/data/lwb/experiments',
     help='Directory containing params.json',
 )
 
 
 def launch_training_job(
+    exp_current_dir,
     exp_root_dir,
     exp_name,
     session_name,
@@ -70,6 +80,7 @@ def launch_training_job(
         cmd = (
             'python train.py '
             f'--gpu_used {device_id} '
+            f'--exp_current_dir {exp_current_dir} '
             f'--exp_root_dir {exp_root_dir} '
             f'--model_dir {model_dir} '
             f'--exp_name {exp_name} '
@@ -92,13 +103,12 @@ def launch_training_job(
     if True:
         print(
             '\n terminal: \n'
-            f'\t input `tmux ls` to find all running tasks \n'
-            f'\t input `tmux attach -t {start_id}` to enter the tmux window \n'
-            f'\t input `CTRL+C` to interupt the task \n'
-            f'\t input `CTRL+D` to end the current subwindow \n'
-            f'\t turn off the window to keep the `tmux` window running in the background \n'
+            f'\t `tmux ls`: find all running tasks \n'
+            f'\t `tmux attach -t {start_id}` to enter the tmux window \n'
+            f'\t `Ctrl + C`: interupt the task \n'
+            f'\t `Ctrl + D`: end the current subwindow \n'
+            f'\t `Ctrl + B D`: exit the window and keep the taks running\n'
         )
-        time.sleep(10)
         check_call(f'tmux ls', shell=True)
         time.sleep(5)
         check_call(f'tmux attach -t {start_id}', shell=True)
@@ -108,22 +118,38 @@ def experiment():
     # Load the "reference" parameters from experiment_dir json file
     args = parser.parse_args()
     exp_root_dir = args.exp_root_dir
-    json_path = os.path.join(exp_root_dir, 'params.json')
+    exp_current_dir = args.exp_current_dir
+    json_path = os.path.join(exp_current_dir, 'params.json')
     assert os.path.isfile(json_path), "No json configuration file found at {}".format(
         json_path
     )
     params = utils.Params(json_path)
-
-    exp_name = 'baseshomo'
-    exp_start_id = 8
-    session_name = str(exp_start_id)  # tmux session name, need pre-create
     param_pool_dict = collections.OrderedDict()
-    device_used = collections.OrderedDict()
-    device_used = ['5', '5']
-    param_pool_dict["train_batch_size"] = [8, 16]
-    param_pool_dict["eval_batch_size"] = [8]
-    param_pool_dict["num_workers"] = [8]
-    # param_pool_dict['train_data_ratio'] = [0.1]
+
+    exp_name = 'homotr'
+    exp_start_id = 2
+    device_used = ['0', '6']
+    param_pool_dict['exp_description'] = [' exp 2-3: share_backbone true or false ']
+    
+    param_pool_dict['is_load_pretrained'] = [True]
+    param_pool_dict['is_save_best_checkpoint'] = [True]
+    param_pool_dict['backbone_type'] = ['origin']
+    param_pool_dict['share_module'] = ['origin']
+    
+    param_pool_dict['eval_freq'] = [1]
+    param_pool_dict['sv_epoch_sequence'] = [1]
+
+    param_pool_dict['optimizer'] = ['adamw']
+    param_pool_dict['num_epochs'] = [40]
+    param_pool_dict['learning_rate'] = [1e-3]
+    param_pool_dict['lr_baseline'] = [1e-3, 1e-4]
+    param_pool_dict['gamma'] = [0.8]
+    param_pool_dict['weight_decay'] = [0.05]
+    
+    param_pool_dict['is_share_backbone'] = [True]
+    param_pool_dict['is_share_feature'] = [False]
+    param_pool_dict['encoder_layers'] = [2]
+
 
     # '0', '1', '2', '3', '4', '5', '6', '7'
     # device_used = ['6']
@@ -140,7 +166,9 @@ def experiment():
         except:
             pass
 
+    session_name = str(exp_start_id)  # tmux session name, need pre-create
     launch_training_job(
+        exp_current_dir,
         exp_root_dir,
         exp_name,
         session_name,
