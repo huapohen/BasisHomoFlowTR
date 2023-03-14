@@ -1,14 +1,57 @@
-import os
-import sys
-import shutil
-import torch
 import numpy as np
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision import models
 from model import net
-from model.util import warp_image_from_H
-from torchvision.utils import save_image
 
+class VGGLoss(nn.Module):
+    def __init__(self, gpu_ids = None):
+        super(VGGLoss, self).__init__()        
+        self.vgg = Vgg19().cuda().eval()
+        self.criterion = nn.L1Loss()
+        self.weights = [1.0/32, 1.0/16, 1.0/8, 1.0/4, 1.0]        
+
+    def forward(self, x, y):              
+        x_vgg, y_vgg = self.vgg(x), self.vgg(y)
+        loss = 0
+        for i in range(len(x_vgg)):
+            loss += self.weights[i] * self.criterion(x_vgg[i], y_vgg[i].detach())        
+        return loss
+
+class Vgg19(torch.nn.Module):
+    def __init__(self, requires_grad=False):
+        super(Vgg19, self).__init__()
+        vgg_pretrained_features = models.vgg19(pretrained=True).features
+        self.slice1 = torch.nn.Sequential()
+        self.slice2 = torch.nn.Sequential()
+        self.slice3 = torch.nn.Sequential()
+        self.slice4 = torch.nn.Sequential()
+        self.slice5 = torch.nn.Sequential()
+        for x in range(2):
+            self.slice1.add_module(str(x), vgg_pretrained_features[x])
+        for x in range(2, 7):
+            self.slice2.add_module(str(x), vgg_pretrained_features[x])
+        for x in range(7, 12):
+            self.slice3.add_module(str(x), vgg_pretrained_features[x])
+        for x in range(12, 21):
+            self.slice4.add_module(str(x), vgg_pretrained_features[x])
+        for x in range(21, 30):
+            self.slice5.add_module(str(x), vgg_pretrained_features[x])
+        if not requires_grad:
+            for param in self.parameters():
+                param.requires_grad = False
+
+    def forward(self, X):
+        h_relu1 = self.slice1(X)
+        h_relu2 = self.slice2(h_relu1)        
+        h_relu3 = self.slice3(h_relu2)        
+        h_relu4 = self.slice4(h_relu3)        
+        h_relu5 = self.slice5(h_relu4)                
+        out = [h_relu1, h_relu2, h_relu3, h_relu4, h_relu5]
+        return out
+
+vgg_loss_func = VGGLoss()
 
 def triplet_loss(a, p, n, margin=1.0, exp=1, reduce=False, size_average=False):
 
@@ -42,8 +85,7 @@ def geometricDistance(correspondence, flow):
 
     return error
 
-
-def geometricDistance_v2(inp, out, scale_x=1.0, scale_y=1.0):
+def geometricDistance_v2(inp, out, scale_x = 1.0, scale_y = 1.0):
     ones = torch.ones_like(inp['points_1_all'])
     pts_1 = torch.cat([inp['points_1_all'], ones[:, :, :1]], -1)
     pts_2 = inp['points_2_all']
@@ -60,55 +102,32 @@ def geometricDistance_v2(inp, out, scale_x=1.0, scale_y=1.0):
         warp_pts[:, :, 0] *= scale_x
         warp_pts[:, :, 1] *= scale_y
 
-        diff = torch.linalg.norm(warp_pts[:, :, :2] - pts2, dim=2)
+        diff = torch.linalg.norm(warp_pts[:, :, :2] - pts2, dim = 2)
         return diff.mean(1).data.cpu().numpy()
 
     err_1 = calc_pts_err(homo_21_inv, pts_1, pts_2, scale_x, scale_y)
 
     return err_1
 
-
-def vis_save_image_and_exit(output, input):
-    svd = 'experiments/tmp'
-    os.makedirs(svd, exist_ok=True)
-    shutil.rmtree(svd)
-    os.makedirs(svd)
-    imgs_patch = input['imgs_gray_patch']
-    img1_warp, img2_warp = output["img_warp"]
-    im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
-    im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
-    img_full_diff = input['img1_full'] - input['img2_full']
-    img_full_rgb_diff = input['img1_full_rgb'] - input['img2_full_rgb']
-    save_image(output["img_warp"][0], f'{svd}/img1_warp.jpg')
-    save_image(output["img_warp"][1], f'{svd}/img2_warp.jpg')
-    save_image(imgs_patch[:, :1, ...], f'{svd}/img1_patch.jpg')
-    save_image(imgs_patch[:, 1:, ...], f'{svd}/img2_patch.jpg')
-    save_image(im_diff_fw, f'{svd}/im_diff_fw.jpg')
-    save_image(im_diff_bw, f'{svd}/im_diff_bw.jpg')
-    save_image(input['imgs_gray_full'], f'{svd}/imgs_gray_full.png')
-    save_image(output['fea_full'][0], f'{svd}/fea_full1.jpg')
-    save_image(output['fea_full'][1], f'{svd}/fea_full2.jpg')
-    save_image(img_full_diff, f'{svd}/img_full_diff.jpg')
-    save_image(img_full_rgb_diff, f'{svd}/img_full_rgb_diff.jpg')
-    save_image(input['img1_full_rgb'] / 255.0, f'{svd}/img1_full_rgb.jpg')
-    save_image(input['img2_full_rgb'] / 255.0, f'{svd}/img2_full_rgb.jpg')
-    save_image(output['img1_warp_rgb'] / 255.0, f'{svd}/img1_warp_rgb.jpg')
-    save_image(output['img2_warp_rgb'] / 255.0, f'{svd}/img2_warp_rgb.jpg')
-
-    sys.exit()
-
-
-def compute_losses(output, input, params):
+def compute_losses(output, train_batch, params):
     losses = {}
 
     # compute losses
     if params.loss_type == "basic":
-        imgs_patch = input['imgs_gray_patch']
+        imgs_patch = train_batch['imgs_gray_patch']
 
+        # start = train_batch['start']
+        # H_flow_f, H_flow_b = output['H_flow']
+        # fea1_full, fea2_full = output["fea_full"]
         fea1_patch, fea2_patch = output["fea_patch"]
         img1_warp, img2_warp = output["img_warp"]
         fea1_warp, fea2_warp = output['fea_warp']
         fea1_patch_warp, fea2_patch_warp = output["fea_patch_warp"]
+
+        batch_size, _, h_patch, w_patch = imgs_patch.size()
+
+        # fea2_warp = net.get_warp_flow(fea2_full, H_flow_f, start=start)
+        # fea1_warp = net.get_warp_flow(fea1_full, H_flow_b, start=start)
 
         im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
         im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
@@ -130,24 +149,29 @@ def compute_losses(output, input, params):
             + triplet_loss(fea2_patch, fea1_warp, fea1_patch).mean()
         )
 
-        if 'is_vis_and_exit' in vars(params) and params.is_vis_and_exit:
-            vis_save_image_and_exit(output, input)
-
-        feature_loss = (
-            losses["triplet_loss"] + params.weight_fil * losses["fea_loss_l1"]
+        # loss toal: backward needed
+        losses["total"] = (
+            losses["triplet_loss"] + params.weight_fil * losses["fea_loss_l1"] + 0.7 * losses["photo_loss_l1"]
         )
-        photo_loss = losses["photo_loss_l1"]
-        if params.loss_func_type == 'feature':
-            losses['total'] = feature_loss
-        elif params.loss_func_type == 'photo':
-            losses['total'] = photo_loss
-        elif params.loss_func_type == 'all':
-            losses["total"] = feature_loss + photo_loss
+
+        # losses["total"] = (
+            # losses["triplet_loss"] + params.weight_fil * losses["fea_loss_l1"] + 0.2 * losses["photo_loss_l1"]
+        # )
+    
+    elif params.loss_type == "L2":
+        loss = F.mse_loss(output, train_batch["gt"])
+        losses["total"] = loss
+    elif params.loss_type == "L1":
+        loss = F.l1_loss(output, train_batch["gt"])
+        losses["total"] = loss
+    elif params.loss_type == "VGG":
+        losses["l1"] = F.l1_loss(output, train_batch["gt"])
+        losses["vgg"] = vgg_loss_func(output, train_batch["gt"])
+        losses["total"] = 0.1 * losses["l1"] + losses["vgg"]
     else:
         raise NotImplementedError
 
     return losses
-
 
 def compute_eval_results(data_batch, output_batch, manager):
 
@@ -158,8 +182,8 @@ def compute_eval_results(data_batch, output_batch, manager):
     homo_21, homo_12 = output_batch['H_flow']
 
     # img1 warp to img2, img2_pred = img1_warp
-    img1_full_warp = warp_image_from_H(homo_21, imgs_full[:, :3, ...], *bhw)
-    img2_full_warp = warp_image_from_H(homo_12, imgs_full[:, 3:, ...], *bhw)
+    img1_full_warp = net.warp_image_from_H(homo_21, imgs_full[:, :3, ...], *bhw)
+    img2_full_warp = net.warp_image_from_H(homo_12, imgs_full[:, 3:, ...], *bhw)
 
     scale_x = grid_w / float(data_batch['imgs_gray_full'].shape[3])
     scale_y = grid_h / float(data_batch['imgs_gray_full'].shape[2])
@@ -170,3 +194,11 @@ def compute_eval_results(data_batch, output_batch, manager):
     eval_results["errs"] = errs
 
     return eval_results
+
+if __name__ == "__main__":
+    import ipdb
+    ipdb.set_trace()
+    input = torch.randn(1, 3, 448, 304)
+    gt = torch.randn(1, 3, 448, 304)
+    loss = vgg_loss_func(input.cuda(), gt.cuda())
+    print(loss)

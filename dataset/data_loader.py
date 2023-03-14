@@ -8,13 +8,13 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
+from .avm_dataset import AVMDataset
 
 _logger = logging.getLogger(__name__)
 
 
 class HomoTrainData(Dataset):
     def __init__(self, params):
-        self.params = params
 
         self.mean_I = np.array([118.93, 113.97, 102.60]).reshape(1, 1, 3)
         self.std_I = np.array([69.85, 68.81, 72.45]).reshape(1, 1, 3)
@@ -25,13 +25,11 @@ class HomoTrainData(Dataset):
         self.horizontal_flip_aug = True
 
         self.list_path = params.train_data_dir + '/train_list.txt'
-        self.data_all = open(self.list_path, 'r').readlines()
-        total_sample = len(self.data_all)
-        num = int(total_sample * params.train_data_ratio)
-        self.data_infor = self.data_all[:num]
-        if params.is_test_last_10_percent:
-            num = int(total_sample * 0.1)
-            self.data_infor = self.data_all[(total_sample - num) :]
+        self.data_infor = open(self.list_path, 'r').readlines()
+        if params.data_ratio < 1:
+            random.seed(1)
+            random.shuffle(self.data_infor)
+            self.data_infor = self.data_infor[:int(len(self.data_infor) * params.data_ratio)]
         self.data_dir = params.train_data_dir + '/Train/'
 
         self.seed = 0
@@ -49,18 +47,6 @@ class HomoTrainData(Dataset):
         img_names = img_names.split(' ')
         img1 = cv2.imread(f'{self.data_dir}/{img_names[0]}')
         img2 = cv2.imread(f'{self.data_dir}/{img_names[1][:-1]}')
-        if self.params.is_test_assigned_img:
-            img1 = cv2.imread('dataset/AVM/10467_A.jpg')
-            img2 = cv2.imread('dataset/AVM/10467_B.jpg')
-
-        img1_full = torch.tensor(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
-        img2_full = torch.tensor(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))
-        img1_full = img1_full.unsqueeze(0).float()
-        img2_full = img2_full.unsqueeze(0).float()
-        img1_full_rgb = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img2_full_rgb = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img1_full_rgb = torch.tensor(img1_full_rgb).float()
-        img2_full_rgb = torch.tensor(img2_full_rgb).float()
 
         # img aug
         img1, img2, img1_patch, img2_patch, start = self.data_aug(
@@ -87,10 +73,6 @@ class HomoTrainData(Dataset):
         start = torch.tensor(start).reshape(2, 1, 1).float()
         # output dict
         data_dict = {}
-        data_dict['img1_full'] = img1_full
-        data_dict['img2_full'] = img2_full
-        data_dict['img1_full_rgb'] = img1_full_rgb
-        data_dict['img2_full_rgb'] = img2_full_rgb
         data_dict["imgs_gray_full"] = imgs_gray_full
         data_dict["imgs_gray_patch"] = imgs_gray_patch
         data_dict["start"] = start
@@ -165,18 +147,8 @@ class HomoTestData(Dataset):
         img1 = cv2.imread(os.path.join(img_files, img_names[0]))
         img2 = cv2.imread(os.path.join(img_files, img_names[1]))
 
-        img1_full_rgb = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img2_full_rgb = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img1_full_rgb = torch.tensor(img1_full_rgb).float()
-        img2_full_rgb = torch.tensor(img2_full_rgb).float()
-
         img1 = cv2.resize(img1, (640, 360))
         img2 = cv2.resize(img2, (640, 360))
-
-        img1_full = torch.tensor(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
-        img2_full = torch.tensor(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))
-        img1_full = img1_full.unsqueeze(0).float()
-        img2_full = img2_full.unsqueeze(0).float()
 
         # img aug
         img1_rs, img2_rs = img1, img2
@@ -196,10 +168,6 @@ class HomoTestData(Dataset):
             normalize=self.normalize,
             horizontal_flip=self.horizontal_flip_aug,
         )
-        img1_full_rgb = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img2_full_rgb = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB).transpose((2, 0, 1))
-        img1_full_rgb = torch.tensor(img1_full_rgb).float()
-        img2_full_rgb = torch.tensor(img2_full_rgb).float()
         # array to tensor
         imgs_ori = (
             torch.tensor(np.concatenate([img1, img2], axis=2)).permute(2, 0, 1).float()
@@ -218,7 +186,6 @@ class HomoTestData(Dataset):
         ph, pw = self.crop_size
         pts = [[0, 0], [pw, 0], [0, ph], [pw, ph]]
         pts_1 = torch.from_numpy(np.array(pts)).float()
-        pts_2 = torch.from_numpy(np.array(pts)).float()
 
         point_dic = np.load(os.path.join(self.npy_path, npy_name), allow_pickle=True)
         points = str(point_dic.item())
@@ -233,18 +200,14 @@ class HomoTestData(Dataset):
 
         # output dict
         data_dict = {}
-        data_dict["imgs_gray_full"] = imgs_gray_full
+        data_dict["imgs_gray_full"] = imgs_gray
         data_dict["imgs_gray_patch"] = imgs_gray
         data_dict["start"] = torch.tensor([0, 0]).reshape(2, 1, 1).float()
 
         data_dict["imgs_ori"] = imgs_ori
-        data_dict['img1_full'] = img1_full
-        data_dict['img2_full'] = img2_full
-        data_dict['img1_full_rgb'] = img1_full_rgb
-        data_dict['img2_full_rgb'] = img2_full_rgb
         data_dict["points"] = points
         data_dict['points_1'] = pts_1
-        data_dict['points_2'] = pts_2
+        data_dict['points_2'] = pts_1
         data_dict['points_1_all'] = pts_1_all
         data_dict['points_2_all'] = pts_2_all
         data_dict["video_name"] = video_name
@@ -268,7 +231,6 @@ class HomoTestData(Dataset):
 
         return img1, img2
 
-
 def fetch_dataloader(params):
     """
     Fetches the DataLoader object for each type in types from data_dir.
@@ -286,25 +248,29 @@ def fetch_dataloader(params):
         )
     )
 
-    dataloaders = {}
-
-    # add train data loader
-    if params.dataset_type in ['basic', 'train']:
+    if params.dataset_type == "basic":
         train_ds = HomoTrainData(params)
-        train_dl = DataLoader(
-            train_ds,
-            batch_size=params.train_batch_size,
-            shuffle=True,
-            num_workers=params.num_workers,
-            pin_memory=params.cuda,
-            drop_last=True,
-            # prefetch_factor=3, # for pytorch >=1.5.0
-        )
-        dataloaders["train"] = train_dl
+        test_ds = HomoTestData(params)
+    elif params.dataset_type == "avm":
+        train_ds = AVMDataset(params.train_data_dir)
+        test_ds = AVMDataset(params.test_data_dir)
+
+    dataloaders = {}
+    # add train data loader
+    train_dl = DataLoader(
+        train_ds,
+        batch_size=params.train_batch_size,
+        shuffle=True,
+        num_workers=params.num_workers,
+        pin_memory=params.cuda,
+        drop_last=True,
+        # prefetch_factor=3, # for pytorch >=1.5.0
+    )
+    dataloaders["train"] = train_dl
 
     # chose test data loader for evaluate
-    if params.eval_type in ['val', 'test']:
-        test_ds = HomoTestData(params)
+
+    if params.eval_type == "test":
         dl = DataLoader(
             test_ds,
             batch_size=params.eval_batch_size,

@@ -34,10 +34,7 @@ data/
 .env/
 ours_v3_ICCV_final
 
-dataset/AVM/
-dataset/data/
+dataset/*.jpg
+dataset/*.txt
 .vscode/
-experiments/*
-# !experiments/config/
-!experiments/params.json
-git*
+*.pth

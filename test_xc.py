@@ -39,7 +39,6 @@ def load_checkpoint(restore_file, model):
     state = torch.load(restore_file, map_location=torch.device('cpu'))
     model.load_state_dict(state["state_dict"])
 
-
 def evaluate_main(model, args, params):
     """Evaluate the model on `num_steps` batches.
     Args:
@@ -59,65 +58,46 @@ def evaluate_main(model, args, params):
     torch.set_grad_enabled(False)
     k = 0
     times = 0
-    imgs_dir = args.test_data_dir + '/AVM'
+    imgs_dir = args.test_data_dir
+    imgs_list = glob.glob(os.path.join(imgs_dir, "*A*")) # 相同名字*_A和*_B为一个pair
+    imgs_names = [name.split("/")[-1][:-6] for name in imgs_list]
     crop_size = tuple(params.crop_size)
-    # for name in imgs_names:
-    if 1:
-        name = 'bev'
-        name_src = imgs_dir + "/ori.jpg"
-        name_tg = imgs_dir + "/pert.jpg"
-        img1 = cv2.imread(name_src)
-        img2 = cv2.imread(name_tg)
+    for name in imgs_names:
+        print("process: ", name)
+        name_src = name + "_A.jpg"
+        name_tg = name + "_B.jpg"
+        img1 = cv2.imread(os.path.join(imgs_dir, name_src))
+        img2 = cv2.imread(os.path.join(imgs_dir, name_tg))
         # img1 = img1[500:,:-200,:]
         # img2 = img2[500:,200:,:]
         img1_rs, img2_rs = img1, img2
         if img1.shape[0] != crop_size[0] or img1.shape[1] != crop_size[1]:
             img1_rs = cv2.resize(img1_rs, (crop_size[1], crop_size[0]))
             img2_rs = cv2.resize(img2_rs, (crop_size[1], crop_size[0]))
-        img1_gray, img2_gray = data_aug(
-            img1_rs, img2_rs, normalize=True, horizontal_flip=False
-        )
-        img1_gray_full, img2_gray_full = data_aug(
-            img1, img2, normalize=True, horizontal_flip=False
-        )
+        img1_gray, img2_gray = data_aug(img1_rs, img2_rs, normalize=True, horizontal_flip=False)
+        img1_gray_full, img2_gray_full = data_aug(img1_rs, img2_rs, normalize=False, horizontal_flip=False)
+        ph, pw = img1_gray.shape[0:2]
+        pts = [[0, 0], [pw, 0], [0, ph], [pw, ph]]
+        pts_1 = torch.from_numpy(np.array(pts)[np.newaxis]).float()
 
         # array to tensor
-        imgs_ori = (
-            torch.tensor(np.concatenate([img1, img2], axis=2))
-            .permute(2, 0, 1)
-            .unsqueeze(0)
-            .float()
-        )
-        imgs_gray = (
-            torch.tensor(np.concatenate([img1_gray, img2_gray], axis=2))
-            .permute(2, 0, 1)
-            .unsqueeze(0)
-            .float()
-        )
-        imgs_gray_full = (
-            torch.tensor(np.concatenate([img1_gray_full, img2_gray_full], axis=2))
-            .permute(2, 0, 1)
-            .unsqueeze(0)
-            .float()
-        )
+        imgs_ori = torch.tensor(np.concatenate([img1, img2], axis=2)).permute(2, 0, 1).unsqueeze(0).float()
+        imgs_gray = torch.tensor(np.concatenate([img1_gray, img2_gray], axis=2)).permute(2, 0, 1).unsqueeze(0).float()
+        imgs_gray_full = torch.tensor(np.concatenate([img1_gray_full, img2_gray_full], axis=2)).permute(2, 0, 1).unsqueeze(0).float()
         eval_batch = {}
         eval_batch["imgs_ori"] = imgs_ori
         eval_batch["imgs_gray_full"] = imgs_gray_full
         eval_batch["imgs_gray_patch"] = imgs_gray
         eval_batch["start"] = torch.tensor([0, 0]).reshape(1, 2, 1, 1).float()
+        eval_batch['points_1'] = pts_1
+        eval_batch['points_2'] = pts_1
         eval_batch = utils.tensor_gpu(eval_batch, check_on=True)
 
         # forward
         eval_results = eval_forward_main(model, eval_batch)
 
         # get results
-        img2_full_warp = (
-            eval_results["img2_full_warp"][0]
-            .permute(1, 2, 0)
-            .cpu()
-            .numpy()
-            .astype(np.uint8)
-        )
+        img2_full_warp = eval_results["img2_full_warp"][0].permute(1, 2, 0).cpu().numpy().astype(np.uint8)
         img2_full_warp = cv2.cvtColor(img2_full_warp, cv2.COLOR_BGR2RGB)
         img1_full = imgs_ori[0, :3, ...].permute(1, 2, 0).cpu().numpy().astype(np.uint8)
         img1_full = cv2.cvtColor(img1_full, cv2.COLOR_BGR2RGB)
@@ -131,13 +111,10 @@ def evaluate_main(model, args, params):
         vis_img_ori = cv2.cvtColor(vis_img_ori, cv2.COLOR_BGR2RGB)
 
         # results saving
-        utils.create_gif(
-            [img1_full, img2_full_warp], os.path.join(result_files, name + ".gif")
-        )
+        utils.create_gif([img1_full, img2_full_warp], os.path.join(result_files, name + ".gif"))
         cv2.imwrite(os.path.join(result_files, name + "_vis.jpg"), vis_img)
         cv2.imwrite(os.path.join(result_files, name + "_vis_ori.jpg"), vis_img_ori)
         times += eval_results["times"]
-
 
 def eval_forward_main(model, val_batch):
     imgs_full = val_batch["imgs_ori"]
@@ -151,15 +128,10 @@ def eval_forward_main(model, val_batch):
     end = time.time()
     times = end - start
     # print("times: ", times)
-    # ==================================================================== warp ======================================================================
-    H_flow_f, H_flow_b = output['H_flow']
-    H_flow_f = net.upsample2d_flow_as(
-        H_flow_f, imgs_full, mode="bilinear", if_rate=True
-    )  # scale
-    img2_full_warp = net.get_warp_flow(imgs_full[:, 3:, ...], H_flow_f, start=0)
+
     # ==================================================================== return ======================================================================
     eval_results = {}
-    eval_results["img2_full_warp"] = img2_full_warp
+    eval_results["img2_full_warp"] = output['img_warp'][1][0, 0].data.cpu().numpy()
     eval_results["times"] = times
     return eval_results
 
@@ -199,7 +171,7 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(230)
     # Define the model
     if params.cuda:
-        model = net.Net(params.crop_size).cuda()
+        model = net.Net(params.crop_size, params.use_LRR).cuda()
         model = torch.nn.DataParallel(
             model, device_ids=range(torch.cuda.device_count())
         )

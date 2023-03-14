@@ -15,10 +15,8 @@ import model.net as net
 
 from common import utils
 from common.manager import Manager
-from evaluate import evaluate
+from evaluate_gen import evaluate
 from loss.losses import compute_losses
-
-torch.backends.cuda.matmul.allow_tf32 = False
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -57,7 +55,7 @@ def train(model, manager):
             data_batch = utils.tensor_gpu(data_batch)
 
             # compute model output and loss
-            output_batch = model(data_batch)
+            output_batch = model(data_batch["inputs"])
             loss = compute_losses(output_batch, data_batch, manager.params)
 
             # update loss status and print current loss and average loss
@@ -65,8 +63,7 @@ def train(model, manager):
 
             # clear previous gradients, compute gradients of all variables loss
             manager.optimizer.zero_grad()
-            # loss['total'].backward()
-            loss['photo_loss_l1'].backward()
+            loss['total'].backward()
 
             # performs updates using calculated gradients
             manager.optimizer.step()
@@ -98,9 +95,11 @@ def train_and_evaluate(model, manager):
         # compute number of batches in one epoch (one full pass over the training set)
         train(model, manager)
 
+        # evaluate
+        evaluate(model, manager)
+
         # Save latest model, or best model weights accroding to the params.major_metric
         manager.check_best_save_last_checkpoints(latest_freq_val=999, latest_freq=1)
-
 
 if __name__ == '__main__':
     # import ipdb
@@ -139,14 +138,14 @@ if __name__ == '__main__':
     # Define the model and optimizer
     if params.cuda:
         model = net.fetch_net(params).cuda()
-        optimizer = optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
+        optimizer = optimizer = optim.Adam(model.parameters(), lr=params.learning_rate, betas=(0.5, 0.999))
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
         gpu_num = len(params.gpu_used.split(","))
         device_ids = range(gpu_num)
         model = torch.nn.DataParallel(model, device_ids=device_ids)
     else:
         model = net.fetch_net(params)
-        optimizer = optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
+        optimizer = optimizer = optim.Adam(model.parameters(), lr=params.learning_rate, betas=(0.5, 0.999))
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
 
     # initial status for checkpoint manager

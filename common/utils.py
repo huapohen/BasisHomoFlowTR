@@ -6,10 +6,8 @@ import cv2, imageio
 
 import torch
 import coloredlogs
-import bisect
-
-
-class Params:
+ 
+class Params():
     """Class that loads hyperparameters from a json file.
 
     Example:
@@ -19,7 +17,6 @@ class Params:
     params.learning_rate = 0.5  # change the value of learning_rate in params
     ```
     """
-
     def __init__(self, json_path):
         with open(json_path) as f:
             params = json.load(f)
@@ -39,9 +36,9 @@ class Params:
         return self.__dict__
 
 
-class RunningAverage:
+class RunningAverage():
     """A simple class that maintains the running average of a quantity
-
+    
     Example:
     ```
     loss_avg = RunningAverage()
@@ -50,7 +47,6 @@ class RunningAverage:
     loss_avg() = 3
     ```
     """
-
     def __init__(self):
         self.steps = 0
         self.total = 0
@@ -63,7 +59,7 @@ class RunningAverage:
         return self.total / float(self.steps)
 
 
-class AverageMeter:
+class AverageMeter():
     def __init__(self):
         self.reset()
 
@@ -95,10 +91,6 @@ def tensor_gpu(batch, check_on=True):
     def check_on_gpu(tensor_):
         if isinstance(tensor_, str) or isinstance(tensor_, list):
             tensor_g = tensor_
-        elif isinstance(tensor_, dict):
-            tensor_g = {}
-            for k, v in tensor_.items():
-                tensor_g[k] = v.cuda()
         else:
             tensor_g = tensor_.cuda()
         return tensor_g
@@ -159,9 +151,7 @@ def set_logger(log_path):
     #     stream_handler.setFormatter(logging.Formatter('%(message)s'))
     #     logger.addHandler(stream_handler)
 
-    coloredlogs.install(
-        level='INFO', logger=logger, fmt='%(asctime)s %(name)s %(message)s'
-    )
+    coloredlogs.install(level='INFO', logger=logger, fmt='%(asctime)s %(name)s %(message)s')
     file_handler = logging.FileHandler(log_path)
     log_formatter = logging.Formatter('%(asctime)s - %(message)s')
     file_handler.setFormatter(log_formatter)
@@ -186,7 +176,6 @@ def save_dict_to_json(d, json_path):
             else:
                 save_dict[k] = float(v)
         json.dump(save_dict, f, indent=4)
-
 
 def create_gif(image_list, gif_name, duration=0.5):
     frames = []

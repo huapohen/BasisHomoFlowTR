@@ -1,15 +1,14 @@
 {
     "project_name": "HomoBases",
-    "train_data_dir": "/data/deephomography/DeepH/PaperDataSet/noDark_harfP_mul_18_6.txt",
-    "test_data_dir": "/data/for_jr/",
+    "train_data_dir": "/data/xingchen/dataset/AVM/DeepH/",
+    "test_data_dir": "/data/xingchen/dataset/AVM/DeepH/",
     "dataset_type": "basic",
     "transform_type": "basic",
     "net_type": "basic",
     "loss_type": "basic",
-    "eval_type": "val",
+    "eval_type": "test",
     "major_metric": "AVG",
     "save_mode": "local",
-    "bucket_name": "ynjdata",
     "learning_rate": 1e-4,
     "gamma": 0.8,
     "train_batch_size": 16,
@@ -30,5 +29,7 @@
     "num_basis": 8,
     "weight_fil": 1,
     "basis_vector_num": 16,
-    "fea_dims": 1
+    "fea_dims": 1,
+    "use_LRR": false,
+    "data_ratio": 0.1
 }

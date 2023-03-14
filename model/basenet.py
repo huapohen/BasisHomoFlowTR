@@ -1,8 +1,182 @@
 from __future__ import absolute_import, division, print_function
+import numpy as np
 import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import cv2
+import warnings
+from torch.nn.modules.utils import _pair, _quadruple
+
+
+warnings.filterwarnings("ignore")
+
+
+class Net(nn.Module):
+    def __init__(self, crop_size, use_LRR = True):
+
+        super(Net, self).__init__()
+        self.inplanes = 64
+        self.layers = [3, 4, 6, 3]
+        self.basis_vector_num = 16
+        self.use_LRR = use_LRR
+        self.crop_size = crop_size  # h,w 
+        ch, cw = crop_size
+        corners = np.array([[0, 0], [cw, 0], [0, ch], [cw, ch]], dtype = np.float32)
+        self.register_buffer('corners', torch.from_numpy(corners.reshape(1, 4, 2)))
+
+        self.share_feature = ShareFeature(1)
+        self.conv1 = nn.Conv2d(2, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.relu = nn.LeakyReLU(inplace=True)
+        self.block = BasicBlock
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(self.block, 64, self.layers[0])
+        self.layer2 = self._make_layer(self.block, 128, self.layers[1], stride=2)
+        self.layer3 = self._make_layer(self.block, 256, self.layers[2], stride=2)
+        self.layer4 = self._make_layer(self.block, 512, self.layers[3], stride=2)
+
+        if self.use_LRR:
+            self.sp_layer3 = Subspace(256)
+            self.sp_layer4 = Subspace(512)
+        else:
+            self.sp_layer3 = None
+            self.sp_layer4 = None
+
+        # self.subspace_block = SubspaceBlock(2, self.basis_vector_num)
+
+        self.conv_last = nn.Conv2d(
+            512, 8, kernel_size=1, stride=1, padding=0, groups=8, bias=False
+        )
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+
+    def _make_layer(self, block, planes, blocks, stride=1):
+
+        downsample = None
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(
+                    self.inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(planes * block.expansion),
+            )
+
+        layers = []
+        layers.append(block(self.inplanes, planes, stride, downsample))
+        self.inplanes = planes * block.expansion
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes, planes))
+
+        return nn.Sequential(*layers)
+
+    def nets_forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        if self.sp_layer3 is not None:
+            x = self.sp_layer3(x)
+        x = self.layer4(x)
+        if self.sp_layer4 is not None:
+            x = self.sp_layer4(x)
+        x = self.conv_last(x)  # bs,8,h,w
+        y = self.pool(x).squeeze(3)  # bs,8,1,1
+
+        return y
+
+    def forward(self, input):
+        # parse input
+        x1_patch, x2_patch = (
+            input['imgs_gray_patch'][:, :1, ...],
+            input['imgs_gray_patch'][:, 1:, ...],
+        )
+        x1_full, x2_full = (
+            input["imgs_gray_full"][:, :1, ...],
+            input["imgs_gray_full"][:, 1:, ...],
+        )
+        start = input['start']
+
+        # net forward
+        batch_size, _, h_patch, w_patch = x1_patch.size()
+
+        fea1_patch, fea2_patch = self.share_feature(x1_patch), self.share_feature(
+            x2_patch
+        )
+        
+        x = torch.cat([fea1_patch, fea2_patch], dim=1)
+        weight_f = self.nets_forward(x)
+
+        x = torch.cat([fea2_patch, fea1_patch], dim=1)
+        weight_b = self.nets_forward(x)
+
+        fea1_full, fea2_full = self.share_feature(x1_full), self.share_feature(x2_full)
+
+        # get results
+
+        bhw = (batch_size, h_patch, w_patch)
+
+        output = {}
+
+        output['offset_1'] = weight_f.reshape(batch_size, 4, 2)
+        output['offset_2'] = weight_b.reshape(batch_size, 4, 2)
+
+        # output['offset_1'] = torch.tensor([[10, 0], [-10, 0], [0, 0], [0, 0]]).reshape(1, 4, 2).float().cuda()  # for test
+
+        output['points_2_pred'] = self.corners + output['offset_1']
+        output['points_1_pred'] = self.corners + output['offset_2']
+        homo_21 = dlt_homo(output['points_2_pred'], input['points_1'])
+        homo_12 = dlt_homo(output['points_1_pred'], input['points_2'])
+
+        # img1 warp to img2, img2_pred = img1_warp
+        img1_warp = warp_image_from_H(homo_21, x1_full, *bhw)
+        img2_warp = warp_image_from_H(homo_12, x2_full, *bhw)
+
+        fea1_warp = warp_image_from_H(homo_21, fea1_full, *bhw)
+        fea2_warp = warp_image_from_H(homo_12, fea2_full, *bhw)
+
+        fea1_patch_warp, fea2_patch_warp = self.share_feature(
+            img1_warp
+        ), self.share_feature(img2_warp)
+
+        output = {}
+        output['H_flow'] = [homo_21, homo_12]
+        # output['fea_full'] = [fea1_full, fea2_full]
+        output["fea_warp"] = [fea1_warp, fea2_warp]
+        output["fea_patch"] = [fea1_patch, fea2_patch]
+        output["fea_patch_warp"] = [fea1_patch_warp, fea2_patch_warp]
+        output["img_warp"] = [img1_warp, img2_warp]
+        output['basis_weight'] = [weight_f, weight_b]
+        return output
+
+    def compute_homo(self, input1, input2):
+        fea1_patch = self.share_feature(input1)
+        fea2_patch = self.share_feature(input2)
+        
+        x = torch.cat([fea1_patch, fea2_patch], dim=1)
+        weight_f = self.nets_forward(x)
+
+        offset = weight_f.reshape(-1, 4, 2)
+        corners2_pred = self.corners + offset
+        corners1 = self.corners.expand_as(corners2_pred)
+        homo_12 = dlt_homo(corners1, corners2_pred)
+
+        return homo_12
+
+
+# ========================================================================================================================
 
 
 class Subspace(nn.Module):
@@ -602,15 +776,36 @@ def warp_image_from_H(homo, img, batch_size, h_patch, w_patch):
     grids = vgrid + flow
     # img_warp = transformer(img, grids)
     grids = grids.permute(0, 2, 3, 1)
-    grids[..., 0] = grids[...,  0] / img.shape[3] * 2 - 1
-    grids[..., 1] = grids[...,  1] / img.shape[2] * 2 - 1
+    grids[:, :, :, 0] = grids[:, :, :, 0] / img.shape[3] * 2 - 1
+    grids[:, :, :, 1] = grids[:, :, :, 1] / img.shape[2] * 2 - 1
     img_warp = F.grid_sample(img, grids, mode='bilinear')
     return img_warp
 
+if __name__ == '__main__':
+    import ipdb
+    ipdb.set_trace()
+    px, py = 63, 39
+    pw, ph = 576, 320
+    pts = [[px, py], [px + pw, py], [px, py + ph], [px + pw, py + ph]]
+    pts_1 = torch.from_numpy(np.array(pts)[np.newaxis]).float()
+    pts_2 = torch.from_numpy(np.array(pts)[np.newaxis]).float()
 
-def warp_image_from_H_start(homo, img, batch_size, h_patch, w_patch, start=0):
-    grid = get_grid(batch_size, h_patch, w_patch, start)
-    flow, vgrid = get_flow(homo, grid, h_patch, w_patch, 1)
-    grids = vgrid + flow
-    img_warp = transformer(img, grids)
-    return img_warp
+    img = cv2.imread('test.jpg', 0)
+    img_patch = img[py:py+ph, px:px+pw]
+
+    input = torch.from_numpy(img[np.newaxis, np.newaxis].astype(np.float32))
+    input_patch = torch.from_numpy(img_patch[np.newaxis, np.newaxis].astype(np.float32))
+    data_dict = {}
+    data_dict["imgs_gray_full"] = torch.cat([input, input], dim = 1).cuda()
+    data_dict["imgs_gray_patch"] = torch.cat([input_patch, input_patch], dim = 1).cuda()
+    data_dict["start"] = torch.tensor([px, py]).reshape(2, 1, 1).float()
+    data_dict['points_1'] = pts_1.cuda()
+    data_dict['points_2'] = pts_2.cuda()
+
+    # net
+    crop_size = (320, 576)
+    net = Net(crop_size, use_LRR = False)
+    net.cuda()
+
+    out = net(data_dict)
+    print(out.keys())

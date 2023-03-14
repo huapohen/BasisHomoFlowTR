@@ -9,18 +9,17 @@ from prettytable import PrettyTable
 def monitor():
     total_table = []
     for dataset in ['val']:
-        table = PrettyTable(
-            ['exp_name', 'exp_id', 'accuracy'],
-            sortby='accuracy',
-            header_style='upper',
-            valign='m',
-            title='{} Result'.format(dataset),
-            reversesort=True,
-        )
+        table = PrettyTable(['exp_name', 'exp_id', 'accuracy'],
+                            sortby='accuracy',
+                            header_style='upper',
+                            valign='m',
+                            title='{} Result'.format(dataset),
+                            reversesort=True)
 
-        valid_dirs = ['baseshomo']
-
-        exp_dirs = glob.glob('./experiments/*/*exp_*')
+        valid_dirs = [
+            'experiment_learning_rate',
+        ] 
+        exp_dirs = glob.glob('./experiments/*/exp_*')
         exp_dirs = [i for i in exp_dirs if i.split('/')[-2] in valid_dirs]
 
         for exp_dir in exp_dirs:
@@ -28,8 +27,7 @@ def monitor():
             results_json_path = os.path.join(exp_dir, 'val_metrics_best.json')
             logs_txt_path = os.path.join(exp_dir, 'log.txt')
             if not os.path.exists(params_json_path) or not os.path.exists(
-                results_json_path
-            ):
+                    results_json_path):
                 continue
 
             params = json.load(open(params_json_path, 'r'))

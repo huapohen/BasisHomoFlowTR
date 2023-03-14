@@ -6,13 +6,24 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 10
-    cfg.gpu_used = '2'
+    cfg.exp_id = 6
+    cfg.gpu_used = '7'
     cfg.num_workers = 8
-    # cfg.train_batch_size = 1
+    cfg.train_batch_size = 8
     cfg.train_data_ratio = 0.1
-    # cfg.is_vis_and_exit = True
-    cfg.exp_description = 'Adam -> AdamW'
+    # cfg.is_add_lrr_module = False
+    cfg.is_add_lrr_module = True
+    # cfg.loss_func_type = 'photo'
+    # cfg.loss_func_type = 'feature'
+    cfg.loss_func_type = 'all'
+    cfg.is_exp_rm_protect = False
+    cfg.is_continue_train = False
+    # cfg.exp_description = 'only_photo_loss'
+    # cfg.exp_description = 'only_feature_loss'
+    # cfg.exp_description = 'all_loss'
+    # cfg.exp_description = 'photo_loss + lrr'
+    # cfg.exp_description = 'feature_loss + lrr'
+    cfg.exp_description = 'all_loss + lrr'
     cfg = continue_train(cfg)
     # cfg.gpu_used = '0_1_2_3_4_5_6_7' # use 8 GPUs
     return cfg
@@ -21,9 +32,8 @@ def train_config(cfg):
 def test_config(cfg, args=None):
 
     cfg.exp_id = 1
-    cfg.gpu_used = '1'
+    cfg.gpu_used = '6'
     cfg.eval_batch_size = 8
-    # cfg.is_vis_and_exit = True
     cfg.is_exp_rm_protect = False
     cfg.dataset_type = "test"
     # cfg.eval_visualize_save = False
@@ -37,7 +47,7 @@ def test_config(cfg, args=None):
 
 
 def continue_train(cfg):
-    if 'is_continue_train' in vars(cfg) and cfg.is_continue_train:
+    if cfg.is_continue_train:
         # cfg.restore_file = 'test_model_best.pth'
         cfg.restore_file = "model_latest.pth"
         cfg.only_weights = True
@@ -52,16 +62,13 @@ def common_config(cfg):
         cfg.data_dir = ""
     if not os.path.exists(cfg.data_dir):
         raise ValueError
-    cfg.exp_root_dir = 'experiments'
+    cfg.exp_root = 'experiments'
     cfg.exp_name = 'baseshomo'
-    exp_dir = os.path.join(cfg.exp_root_dir, cfg.exp_name)
+    exp_dir = os.path.join(cfg.exp_root, cfg.exp_name)
     cfg.model_dir = os.path.join(exp_dir, f"exp_{cfg.exp_id}")
     cfg.tb_path = os.path.join(exp_dir, 'tf_log', f'exp_{cfg.exp_id}')
-    if 'restore_file' in cfg and cfg.restore_file is not None:
-        cfg.restore_file = os.path.join(cfg.model_dir, cfg.restore_file)
     if (
-        'is_exp_rm_protect' in vars(cfg)
-        and cfg.is_exp_rm_protect
+        cfg.is_exp_rm_protect
         and os.path.exists(cfg.model_dir)
         and not cfg.is_continue_train
     ):
