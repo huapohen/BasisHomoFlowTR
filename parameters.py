@@ -6,9 +6,12 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 25
-    cfg.gpu_used = '6'
+    cfg.exp_id = 29
+    cfg.gpu_used = '7'
     cfg.train_data_ratio = 1.0
+    cfg.is_img_balance = True
+    cfg.is_add_edge_loss = True
+    cfg.is_include_dataset_nature = True
     cfg.dataset_nature_ratio = 0.02
     cfg.num_workers = 8
     cfg.crop_size_outdoor = [320, 576]
@@ -21,7 +24,9 @@ def train_config(cfg):
     cfg.train_data_dir = f'/home/data/lwb/data/dybev/{cfg.set_name}'
     cfg.test_data_dir = cfg.train_data_dir
     cfg.exp_description = f' exp_{cfg.exp_id}: '
-    cfg.exp_description += ' outdoor '
+    cfg.exp_description += ' outdoor b16_seq img_balance + add edge loss '
+    # cfg.exp_description += ' outdoor b16 img_balance + add edge loss + nature=0.02 '
+    # cfg.exp_description += ' outdoor b16 img_balance '
     cfg.camera_list = ['front']
     cfg.train_batch_size = 16
     # cfg.eval_batch_size = 2

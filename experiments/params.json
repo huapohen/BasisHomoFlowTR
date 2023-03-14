@@ -72,7 +72,8 @@
     "set_name": "b16",
     "forward_version": "offset",
     "dataset_nature_ratio": 0.01,
-    "is_include_dataset_nature": true,
-    "is_balance": false,
+    "is_include_dataset_nature": false,
+    "is_only_nature_dataset": false,
+    "is_img_balance": false,
     "is_add_edge_loss": false
 }

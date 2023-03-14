@@ -23,7 +23,7 @@ class HomoData(Dataset):
             raise
         self.rho = params.rho_dybev
         
-        self.is_balance = params.is_balance
+        self.is_img_balance = params.is_img_balance
         self.normalize = True
         self.gray = True
         self.horizontal_flip_aug = True if mode == 'train' else False
@@ -32,8 +32,9 @@ class HomoData(Dataset):
         self.data_dir = os.path.join(base_path, params.set_name)
         path = os.path.join(self.data_dir, f'{mode}.txt')
         
-        # self.data_all = open(path, 'r').readlines()
-        self.data_all = []
+        self.data_all = open(path, 'r').readlines()
+        if params.is_only_nature_dataset:
+            self.data_all = []
         
         # if 0 and params.is_include_dataset_nature:
         if params.is_include_dataset_nature:
@@ -152,7 +153,7 @@ class HomoData(Dataset):
                 img2_rs = cv2.resize(img2, (cw, ch))
             return img1_rs, img2_rs, 0, 0
         
-        if self.is_balance:
+        if self.is_img_balance:
             img1, img2 = img_balance(img1, img2)
 
         if self.horizontal_flip_aug and random.random() <= 0.5:
