@@ -66,6 +66,10 @@ class PairMaker:
         
         # ['f_l', 'l_f'], ['f_r', 'r_f'], ['b_l', 'l_b'], ['b_r', 'r_b']
         self.pair_id = {'f_l': 'p1', 'f_r': 'p2', 'b_l': 'p3', 'b_r': 'p4'}
+        data_root_dir = '/home/data/lwb/data/dybev'
+        # set_name = 'b16'
+        set_name = 'b16_seq'
+        self.data_dir = f'{data_root_dir}/{set_name}'
                 
     
     def make_pair(self):
@@ -74,8 +78,7 @@ class PairMaker:
             if len(info[0]) == 0:
                 continue
             self.valid_list.append(vid)
-            bp = '/home/data/lwb/data/dybev/b16'
-            svp = bp + f'/train_{vid}.txt'
+            svp = self.data_dir + f'/train_{vid}.txt'
             if os.path.exists(svp):
                 os.remove(svp)
             f = open(svp, 'a+')
@@ -88,18 +91,23 @@ class PairMaker:
                         n1 = f'{vid}/{vid}_{k1[0]}_{self.pair_id[k2[0]]}-{k2[0]}.jpg'
                         n2 = f'{vid}/{vid}_{k1[1]}_{self.pair_id[k2[0]]}-{k2[1]}.jpg'
                         f.write(n1 + ' ' + n2 + '\n')
+                for k2 in sign:
+                    for k22 in k2:
+                        if random.random() <= 0.25:
+                            n1 = f'{vid}/{vid}_{i+0}_{self.pair_id[k2[0]]}-{k22}.jpg'
+                            n2 = f'{vid}/{vid}_{i+1}_{self.pair_id[k2[0]]}-{k22}.jpg'
+                            f.write(n1 + ' ' + n2 + '\n')
         f.close()
         pass
     
     def merge_txt(self):
-        bp = '/home/data/lwb/data/dybev/b16'
         name_list = []
         for txt in self.valid_list:
-            with open(f'{bp}/train_{txt}.txt', 'r') as f:
+            with open(f'{self.data_dir}/train_{txt}.txt', 'r') as f:
                 name_list += f.readlines()
         random.shuffle(name_list)
-        p1 = f'{bp}/train.txt'
-        p2 = f'{bp}/test.txt'
+        p1 = f'{self.data_dir}/train.txt'
+        p2 = f'{self.data_dir}/test.txt'
         for p in [p1, p2]:
             if os.path.exists(p):
                 os.remove(p)

@@ -46,8 +46,8 @@ class HomoData(Dataset):
             
         total_sample = len(self.data_all)
         
-        random.seed(params.seed)
-        np.random.seed(params.seed)
+        # random.seed(params.seed)
+        # np.random.seed(params.seed)
         
         if mode == 'train':
             random.shuffle(self.data_all)
