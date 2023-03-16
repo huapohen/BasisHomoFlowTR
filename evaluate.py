@@ -61,10 +61,10 @@ def evaluate(model, manager):
     model.eval()
     params = manager.params
 
-    MSE_BEV = []
-    
     kpr_list = []
-    loss_list = []
+    loss_total_list = []
+    loss_photo_list = []
+    loss_edge_list = []
 
     with torch.no_grad():
         # compute metrics over the dataset
@@ -78,7 +78,11 @@ def evaluate(model, manager):
                 data_batch = utils.tensor_gpu(data_batch)
                 output_batch = model(data_batch)
                 losses = compute_losses(output_batch, data_batch, manager.params)
-                loss_list.append(losses['total'].item())
+                loss_total_list.append(losses['total'].item())
+                if params.is_add_photo_loss:
+                    loss_photo_list.append(losses['photo'].item())
+                if params.is_add_edge_loss:
+                    loss_edge_list.append(losses['edge'].item())
                 eval_results = compute_eval_results(data_batch, output_batch, params)
                 img1s_full_warp = eval_results["img1_full_warp"]
                 err_avg = eval_results["errs"]
@@ -87,7 +91,6 @@ def evaluate(model, manager):
                 for j in range(bs):
                     # break
                     err = round(err_avg[j], 4)
-                    MSE_BEV.append(err)
                     prt_err = f'pts-err_{err}' if err != 0 else ''
 
                     if k % params.save_iteration == 0 and params.is_save_gif:
@@ -126,10 +129,14 @@ def evaluate(model, manager):
                 # kpr_list.append(prt_str)
                 # t.set_description(prt_str)
                 # t.update()
-        loss_avg = round(np.mean(np.array(loss_list)), 4)
-        prt_loss = f'loss_avg: {loss_avg} \n'
+        loss_total_avg = round(np.mean(np.array(loss_total_list)), 4)
+        loss_edge_avg = round(np.mean(np.array(loss_edge_list)), 4)
+        loss_photo_avg = round(np.mean(np.array(loss_photo_list)), 4)
+        prt_loss = f'total_loss: {loss_total_avg}'
+        if params.is_add_edge_loss:
+            prt_loss += f', photo_loss: {loss_photo_avg}, edge_loss: {loss_edge_avg}'
         print(prt_loss)
-        kpr_list = [prt_loss] + kpr_list
+        kpr_list = [prt_loss + '\n'] + kpr_list
         kpr_dir = os.path.join(params.model_dir, 'kpr')
         os.makedirs(kpr_dir, exist_ok=True)
         if 'current_epoch' not in vars(params):
@@ -141,36 +148,22 @@ def evaluate(model, manager):
         kpr = open(kpr_path, 'a+')
         kpr.write(('\n').join(kpr_list))
         kpr.close()
-
-        # exp_20 : 1000个epoch，只有b16数据，190x190 crop 160x160, random_crop边界值: 8 pix
-        # exp_22 ：20个epoch，增加论文数据集，比例：3500+ vs 16000, 360x640 crop 320x576, 16 pix
         
-        # exp_20: train loss_avg: b16=0.4706
-        # exp_22: train loss_avg: b16=0.5367 vs paper=0.1761, total_loss_avg=0.2460
-        
-        # exp_20: test  loss_avg: b16=0.9070
-        # exp_22: test  loss_avg: b16=0.6342 vs paper=0.6391, total_loss_avg=0.6348
-        
-        # exp_21: 4000 nature
-        # exp_23: 8000 nature
-        
-        # exp_24: only nature 16000
-        
-        MSE_BEV_avg = sum(MSE_BEV) / len(MSE_BEV)
-
         Metric = {
-            "MSE_BEV_avg": MSE_BEV_avg,
+            "total_loss": loss_total_avg,
+            "photo_loss": loss_photo_avg,
+            "edge_loss": loss_edge_avg,
         }
+        
         manager.update_metric_status(
             metrics=Metric, split=manager.params.eval_type, batch_size=1
         )
 
         # update data to logger
         manager.logger.info(
-            "Loss/Test: {} epoch_{} BEV:{:.4f}. ".format(
-                loss_avg,
+            "Loss/Test: epoch_{}, {}. ".format(
                 manager.epoch_val,
-                MSE_BEV_avg
+                prt_loss,
             )
         )
  

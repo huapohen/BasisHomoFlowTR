@@ -6,12 +6,13 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 29
-    cfg.gpu_used = '7'
+    cfg.exp_id = 33
+    cfg.gpu_used = '5'
     cfg.train_data_ratio = 1.0
     cfg.is_img_balance = True
     cfg.is_add_edge_loss = True
-    cfg.is_include_dataset_nature = True
+    cfg.is_add_photo_loss = False
+    # cfg.is_include_dataset_nature = True
     cfg.dataset_nature_ratio = 0.02
     cfg.num_workers = 8
     cfg.crop_size_outdoor = [320, 576]
@@ -19,12 +20,13 @@ def train_config(cfg):
     cfg.learning_rate = 1e-4
     cfg.gamma = 0.8
     cfg.num_epochs = 20
+    # cfg.set_name = 'b16_seq'
     cfg.set_name = 'b16'
     # cfg.set_name = 'b07'
     cfg.train_data_dir = f'/home/data/lwb/data/dybev/{cfg.set_name}'
     cfg.test_data_dir = cfg.train_data_dir
     cfg.exp_description = f' exp_{cfg.exp_id}: '
-    cfg.exp_description += ' outdoor b16_seq img_balance + add edge loss '
+    cfg.exp_description += ' outdoor b16 edge loss + img_balance '
     # cfg.exp_description += ' outdoor b16 img_balance + add edge loss + nature=0.02 '
     # cfg.exp_description += ' outdoor b16 img_balance '
     cfg.camera_list = ['front']
@@ -40,19 +42,21 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 24
-    cfg.gpu_used = '5'
-    cfg.is_include_dataset_nature = True
-    # cfg.is_include_dataset_nature = False
-    cfg.dataset_nature_ratio = 0.02
-    # cfg.is_debug_dataloader = True
+    cfg.exp_id = 27
+    cfg.gpu_used = '0'
+    # cfg.gpu_used = '5'
+    # cfg.is_include_dataset_nature = True
+    cfg.is_include_dataset_nature = False
+    # 推理时开启photo_loss
+    cfg.is_add_photo_loss = True
+    # cfg.is_only_nature_dataset = True
+    cfg.save_iteration = 1
+    cfg.is_save_gif = True
     cfg.eval_batch_size = 16
     cfg.num_workers = 8
     # cfg.is_vis_and_exit = True
-    cfg.save_iteration = 10000
-    cfg.is_save_gif = True
+    # cfg.is_debug_dataloader = True
     # cfg.eval_visualize_save = False
-    # cfg.restore_file = 'test_model_best.pth'
     cfg.dataset_type = "test"
     cfg.restore_file = "model_latest.pth"
 

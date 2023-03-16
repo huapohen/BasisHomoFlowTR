@@ -3,9 +3,11 @@ import cv2
 import ipdb
 import torch
 import random
+import imageio
 import numpy as np
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
+from ipdb import set_trace as ip
 
 
 class HomoData(Dataset):
@@ -15,7 +17,7 @@ class HomoData(Dataset):
         self.mode = mode
         self.mean_I = np.array([118.93, 113.97, 102.60]).reshape(1, 1, 3)
         self.std_I = np.array([69.85, 68.81, 72.45]).reshape(1, 1, 3)
-        if params.set_name == 'b16':
+        if 'b16' in params.set_name:
             self.crop_size = params.crop_size_outdoor
         elif params.set_name == 'b07':
             self.crop_size = params.crop_size_dybev
@@ -71,6 +73,7 @@ class HomoData(Dataset):
         '''
         debug dataloader: set num_workers=0
         '''
+        self.idx = idx
         img_names = self.data_infor[idx]
         img_names = img_names.split(' ')
         
@@ -79,8 +82,11 @@ class HomoData(Dataset):
         pts_1_list, pts_2_list = [], []
         imgs_ori_list = []
         
-        data_nature_dir = self.data_dir.replace('b16', f'nature/{self.mode}')
+        set_name = self.params.set_name
+        data_nature_dir = self.data_dir.replace(set_name, f'nature/{self.mode}')
         data_dir = self.data_dir if '2023' in img_names[0] else data_nature_dir
+        if 'b16_' in set_name:
+            data_dir = data_dir.replace(set_name, 'b16')
         for i in range(int(len(img_names) / 2)):
             img1 = cv2.imread(f'{data_dir}/{img_names[i * 2]}')
             img2 = cv2.imread(f'{data_dir}/{img_names[i * 2 + 1].rsplit()[0]}')
@@ -154,7 +160,24 @@ class HomoData(Dataset):
             return img1_rs, img2_rs, 0, 0
         
         if self.is_img_balance:
-            img1, img2 = img_balance(img1, img2)
+            if 1:
+                img1, img2 = img_balance(img1, img2)
+            else:
+                svd =  'experiments/img_balance'
+                svp0 = f'{svd}/{self.idx}_0.gif'
+                svp1 = f'{svd}/{self.idx}_1.gif'
+                svp2 = f'{svd}/{self.idx}_2.gif'
+                svp3 = f'{svd}/{self.idx}_3.gif'
+                i1, i2 = img_balance(img1, img2)
+                imageio.mimsave(svp2, [i1, i2], 'GIF', duration=0.5)
+                imageio.mimsave(svp3, [img1, img2], 'GIF', duration=0.5)
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(i1, '###', (100, 100), font,1,(0,255,0),3)
+                cv2.putText(i2, '###', (100, 100), font,1,(0,255,0),3)
+                imageio.mimsave(svp0, [img1, i1], 'GIF', duration=0.5)
+                imageio.mimsave(svp1, [img2, i2], 'GIF', duration=0.5)
+                img1, img2 = img_balance(img1, img2)
+                ip()
 
         if self.horizontal_flip_aug and random.random() <= 0.5:
             img1 = np.flip(img1, 1)
@@ -178,10 +201,10 @@ class HomoData(Dataset):
 def white_balance(img):
     '''
     完美反射白平衡
-    STEP 1：计算每个像素的R\G\B之和
-    STEP 2：按R+G+B值的大小计算出其前Ratio%的值作为参考点的的阈值T
-    STEP 3：对图像中的每个点，计算其中R+G+B值大于T的所有点的R\G\B分量的累积和的平均值
-    STEP 4：对每个点将像素量化到[0,255]之间
+    STEP 1: 计算每个像素的R\G\B之和
+    STEP 2: 按R+G+B值的大小计算出其前Ratio%的值作为参考点的的阈值T
+    STEP 3: 对图像中的每个点, 计算其中R+G+B值大于T的所有点的R\G\B分量的累积和的平均值
+    STEP 4: 对每个点将像素量化到[0,255]之间
     依赖ratio值选取而且对亮度最大区域不是白色的图像效果不佳。
     :param img: cv2.imread读取的图片数据
     :return: 返回的白平衡结果图片数据

@@ -125,7 +125,8 @@ def compute_losses(output, input, params):
     # train: gt 0.5862 vs pd 0.4665
     # test:  gt 0.6544 vs pd 0.5836
     num_cam = len(params.camera_list)
-    losses['photo'] = photo_loss / num_cam
+    if params.is_add_photo_loss:
+        losses['photo'] = photo_loss / num_cam
     if params.is_add_edge_loss:
         losses['edge'] = edge_loss / num_cam
     losses['total'] = (photo_loss + edge_loss) / num_cam

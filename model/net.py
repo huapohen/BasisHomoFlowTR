@@ -24,7 +24,7 @@ class Net(nn.Module):
         self.inplanes = 64
         self.layers = [3, 4, 6, 3]
         self.basis_vector_num = 16
-        if params.set_name == 'b16':
+        if 'b16' in params.set_name:
             self.crop_size = params.crop_size_outdoor
         elif params.set_name == 'b07':
             self.crop_size = params.crop_size_dybev
