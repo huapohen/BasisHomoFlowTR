@@ -22,13 +22,13 @@
     "major_metric": "AVG",
     "save_mode": "local",
     "learning_rate": 1e-3,
-    "gamma": 0.99,
+    "gamma": 0.97,
     "mean_value": 111.83,
     "std_value": 70.37,
-    "save_iteration": 10,
+    "save_iteration": 100,
     "train_batch_size": 16,
     "eval_batch_size": 16,
-    "num_epochs": 1000,
+    "num_epochs": 300,
     "eval_freq": 2000,
     "save_summary_steps": 100,
     "num_workers": 8,
@@ -76,5 +76,7 @@
     "is_only_nature_dataset": false,
     "is_img_balance": false,
     "is_add_edge_loss": false,
-    "is_add_photo_loss": true
+    "is_add_photo_loss": true,
+    "is_add_ones_mask": false,
+    "calc_gt_photo_loss": false
 }

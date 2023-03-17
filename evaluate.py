@@ -69,8 +69,8 @@ def evaluate(model, manager):
     with torch.no_grad():
         # compute metrics over the dataset
         iter_max = len(manager.dataloaders[params.eval_type])
-        # with tqdm(total=iter_max) as t:
-        if 1:
+        with tqdm(total=iter_max) as t:
+        # if 1:
             for k, data_batch in enumerate(manager.dataloaders[params.eval_type]):
                 # data parse
                 imgs_full = data_batch["imgs_ori"]
@@ -128,7 +128,7 @@ def evaluate(model, manager):
                 # prt_str = f"{k}:{np.mean(err_avg):.4f} "
                 # kpr_list.append(prt_str)
                 # t.set_description(prt_str)
-                # t.update()
+                t.update()
         loss_total_avg = round(np.mean(np.array(loss_total_list)), 4)
         loss_edge_avg = round(np.mean(np.array(loss_edge_list)), 4)
         loss_photo_avg = round(np.mean(np.array(loss_photo_list)), 4)

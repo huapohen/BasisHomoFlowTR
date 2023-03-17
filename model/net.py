@@ -94,7 +94,9 @@ class Net(nn.Module):
         return x
 
     def forward(self, input):
+        params = self.params
         b, c, ph, pw = input['imgs_gray_patch'].shape
+        bhw = [b, ph, pw]
         b2hw = [b, 2, ph, pw]
         start = input['start']
         output = {
@@ -102,6 +104,7 @@ class Net(nn.Module):
             'points_pred': [],
             'H_flow': [],
             "img_warp": [],
+            'ones_mask': [],
         }
         
         num_cameras = int(c / 2)
@@ -111,6 +114,7 @@ class Net(nn.Module):
             x2_patch = input['imgs_gray_patch'][:, i*2+1:i*2+2]
             x1_full = input["imgs_gray_full"][:, i*2:i*2+1]
             x2_full = input["imgs_gray_full"][:, i*2+1:i*2+2]
+            ones = x1_full.new_ones(x1_full.shape)
             
             fea1_patch = self.share_feature(x1_patch)
             fea2_patch = self.share_feature(x2_patch)
@@ -118,7 +122,7 @@ class Net(nn.Module):
             x1 = torch.cat([fea1_patch, fea2_patch], dim=1)
             x2 = torch.cat([fea2_patch, fea1_patch], dim=1)
             
-            if self.params.forward_version == 'basis':
+            if params.forward_version == 'basis':
                 weight_f = self.nets_forward(x1).reshape(-1, 8, 1)
                 weight_b = self.nets_forward(x2).reshape(-1, 8, 1)
                 H_flow_f = (self.basis * weight_f).sum(1).reshape(*b2hw)
@@ -127,8 +131,12 @@ class Net(nn.Module):
                 img2_warp = get_warp_flow(x2_full, H_flow_f, start)  # _f  1<-2
                 output["img_warp"].append([img1_warp, img2_warp])
                 output["H_flow"].append([H_flow_f, H_flow_b])
+                if params.is_add_ones_mask:
+                    ones_mask_f = get_warp_flow(ones, H_flow_b, start)
+                    ones_mask_b = get_warp_flow(ones, H_flow_f, start)
+                    output["ones_mask"].append([ones_mask_f, ones_mask_b])
                 
-            elif self.params.forward_version == 'offset':
+            elif params.forward_version == 'offset':
                 offset_1 = self.nets_forward(x1)
                 offset_2 = self.nets_forward(x2)
                 points_2_pred = self.corners + offset_1
@@ -137,14 +145,17 @@ class Net(nn.Module):
                 points_2 = input['points_2'][:, i*2:i*2+4].contiguous()
                 homo_21 = dlt_homo(points_2_pred, points_1)
                 homo_12 = dlt_homo(points_1_pred, points_2)
-                img1_warp = warp_image_from_H(homo_21, x1_full, b, ph, pw)
-                img2_warp = warp_image_from_H(homo_12, x2_full, b, ph, pw)
-            
+                img1_warp = warp_image_from_H(homo_21, x1_full, *bhw)
+                img2_warp = warp_image_from_H(homo_12, x2_full, *bhw)
                 output['offset'].append([offset_1, offset_2])
                 output['points_pred'].append([points_1_pred, points_2_pred])
                 output['H_flow'].append([homo_21, homo_12])
                 output["img_warp"].append([img1_warp, img2_warp])
-        
+                if params.is_add_ones_mask:
+                    ones_mask_f = warp_image_from_H(homo_21, ones, *bhw)
+                    ones_mask_b = warp_image_from_H(homo_12, ones, *bhw)
+                    output["ones_mask"].append([ones_mask_f, ones_mask_b])
+            
         return output
     
     def compute_homo(self, input1, input2):

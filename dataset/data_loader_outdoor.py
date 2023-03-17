@@ -29,6 +29,8 @@ class HomoData(Dataset):
         self.normalize = True
         self.gray = True
         self.horizontal_flip_aug = True if mode == 'train' else False
+        # self.horizontal_flip_aug = False
+        # self.horizontal_flip_aug = True
         
         base_path = '/home/data/lwb/data/dybev/'
         self.data_dir = os.path.join(base_path, params.set_name)
@@ -85,7 +87,7 @@ class HomoData(Dataset):
         set_name = self.params.set_name
         data_nature_dir = self.data_dir.replace(set_name, f'nature/{self.mode}')
         data_dir = self.data_dir if '2023' in img_names[0] else data_nature_dir
-        if 'b16_' in set_name:
+        if 'b16_' in set_name and set_name != 'b16_cp':
             data_dir = data_dir.replace(set_name, 'b16')
         for i in range(int(len(img_names) / 2)):
             img1 = cv2.imread(f'{data_dir}/{img_names[i * 2]}')
@@ -136,7 +138,7 @@ class HomoData(Dataset):
             img2[:, :, 1] = img2[:, :, 1] * k_s 
             img2[:, :, 2] = img2[:, :, 2] * k_v 
             img1 = np.clip(img1, 0, 255)
-            img2 = np.clip(img2, 0, 255)  
+            img2 = np.clip(img2, 0, 255)
             img1 = cv2.cvtColor(img1.astype(np.uint8), cv2.COLOR_HSV2BGR)
             img2 = cv2.cvtColor(img2.astype(np.uint8), cv2.COLOR_HSV2BGR) 
             img1 = np.clip(img1, 0, 255)
@@ -188,6 +190,8 @@ class HomoData(Dataset):
             img2 = (img2 - self.mean_I) / self.std_I
 
         aug_func = random_crop if self.mode == 'train' else resize
+        # aug_func = resize
+        # aug_func = random_crop
         img1_aug, img2_aug, px, py = aug_func(img1, img2)
         
         if self.gray:

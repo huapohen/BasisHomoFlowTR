@@ -6,29 +6,31 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 33
-    cfg.gpu_used = '5'
+    cfg.exp_id = 41
+    cfg.exp_description = f' exp_{cfg.exp_id}: '
+    cfg.exp_description += ' outdoor b16 + 160x160 + 300 epoch + 1e-3 + 0.97 + img_balance '
+    # cfg.exp_description += ' outdoor b16 img_balance + add edge loss + nature=0.02 '
+    cfg.gpu_used = '0'
     cfg.train_data_ratio = 1.0
     cfg.is_img_balance = True
-    cfg.is_add_edge_loss = True
-    cfg.is_add_photo_loss = False
+    cfg.eval_freq = 20
+    # cfg.is_add_edge_loss = True
+    # cfg.is_add_photo_loss = False
     # cfg.is_include_dataset_nature = True
+    # cfg.is_only_nature_dataset = True
     cfg.dataset_nature_ratio = 0.02
     cfg.num_workers = 8
     cfg.crop_size_outdoor = [320, 576]
     cfg.rho_dybev = 16
-    cfg.learning_rate = 1e-4
-    cfg.gamma = 0.8
-    cfg.num_epochs = 20
+    # cfg.learning_rate = 1e-4
+    # cfg.gamma = 0.8
+    # cfg.num_epochs = 20
     # cfg.set_name = 'b16_seq'
     cfg.set_name = 'b16'
+    # cfg.set_name = 'b16_cp'
     # cfg.set_name = 'b07'
     cfg.train_data_dir = f'/home/data/lwb/data/dybev/{cfg.set_name}'
     cfg.test_data_dir = cfg.train_data_dir
-    cfg.exp_description = f' exp_{cfg.exp_id}: '
-    cfg.exp_description += ' outdoor b16 edge loss + img_balance '
-    # cfg.exp_description += ' outdoor b16 img_balance + add edge loss + nature=0.02 '
-    # cfg.exp_description += ' outdoor b16 img_balance '
     cfg.camera_list = ['front']
     cfg.train_batch_size = 16
     # cfg.eval_batch_size = 2
@@ -42,16 +44,24 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 27
-    cfg.gpu_used = '0'
-    # cfg.gpu_used = '5'
+    cfg.exp_id = 38
+    # cfg.gpu_used = '6'
+    cfg.gpu_used = '5'
+    # cfg.calc_gt_photo_loss = True
+    # cfg.set_name = 'b16_cp'
+    cfg.set_name = 'b16'
+    # cfg.is_add_ones_mask = True
+    cfg.is_img_balance = False
+    # cfg.is_img_balance = True
+    cfg.crop_size_outdoor = [320, 576]
+    cfg.rho_dybev = 16
     # cfg.is_include_dataset_nature = True
     cfg.is_include_dataset_nature = False
     # 推理时开启photo_loss
     cfg.is_add_photo_loss = True
     # cfg.is_only_nature_dataset = True
     cfg.save_iteration = 1
-    cfg.is_save_gif = True
+    # cfg.is_save_gif = True
     cfg.eval_batch_size = 16
     cfg.num_workers = 8
     # cfg.is_vis_and_exit = True
