@@ -36,8 +36,13 @@ ours_v3_ICCV_final
 
 dataset/AVM/
 dataset/data/
+dataset/dybev/
+dataset/avm/
+dataset/Coordinate-v2/
+dataset/test/
 .vscode/
 experiments/*
 # !experiments/config/
 !experiments/params.json
 git*
+!/tools/*/*.jpg

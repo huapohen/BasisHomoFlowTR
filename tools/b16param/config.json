@@ -1,0 +1,204 @@
+{
+  "AVM": {
+    "2D": {
+      "img_w": 616,
+      "img_h": 880,
+      "scale": 1.25
+    },
+    "cameraParam": {
+      "hardware": {
+        "focal_length": 950,
+        "dx": 3,
+        "dy": 3,
+        "cx": 640,
+        "cy": 480
+      },
+      "undistort": {
+        "Opencv_k0": 0.11573197,
+        "Opencv_k1": -0.02459478,
+        "Opencv_k2": 0.00570041,
+        "Opencv_k3": -0.00117086,
+        "undis_scale": 1.55
+      },
+      "undis_params_inverse_0": {
+        "k0": -0.01198299,
+        "k1": -0.09930431,
+        "k2": 0.03614233,
+        "k3": -0.00149136
+      },
+      "undis_params_inverse_2": {
+        "k0": -0.04601074,
+        "k1": -0.14451513,
+        "k2": 0.07001673,
+        "k3": -0.0089671
+      },
+      "undis_params_inverse_4": {
+        "k0": -0.16825553,
+        "k1": -0.07333178,
+        "k2": 0.04596007,
+        "k3": -0.00621837
+      }
+    },
+    "calibrate": {
+      "spread_w": 520,
+      "spread_h": 960, 
+      "car_rect_3d_x":125,
+      "car_rect_3d_y":270,
+      "rectangle_length": 120,
+      "detected_points_json_name": "detected_points.json", 
+      "camera_infor_json": "camera_infor.json",
+      "fish_undis_flag":0,
+      "chessboard_flag":false,
+      "chessboard_use_num":4
+    },
+    "selfCalibrate":{
+      "selfCalibrateFlag":false,
+      "startFrameNum":269,
+      "endFrameNum":309,
+      "combine_f_line":115,
+      "birdFB_thresh0":150,
+      "birdFB_thresh1":250,
+      "birdFB_thresh2":365,
+      "birdFB_thresh3":470,
+      "birdL_thresh":150,
+      "birdR_thresh":100,
+      "input_video_path":"day2/",
+      "input_f":"front.mp4",
+      "input_b":"back.mp4",
+      "input_l":"left.mp4",
+      "input_r":"right.mp4",
+      "detected_f":"laneDetect_f.mp4",
+      "detected_b":"laneDetect_b.mp4",
+      "detected_l":"laneDetect_l.mp4",
+      "detected_r":"laneDetect_r.mp4",
+      "detected_bird":"laneDetect_bird.mp4",
+      "selfCalibrate_data_txt_name":"self_calibrate_data.txt"
+    },
+    "mask":{
+      "fusion_range_angle_half": 10,
+      "lt_fusion_region_angle": 45,
+      "rt_fusion_region_angle": 45,
+      "lb_fusion_region_angle": 30,
+      "rb_fusion_region_angle": 30,
+      "stitch_center_A_2d": 0.75,
+      "stitch_center_B_2d": 0.75,
+      "stitch_inside_A_2d": 0.2,
+      "stitch_inside_B_2d": 0.3,
+      "stitch_outside_A_2d": 0.3,
+      "stitch_outside_B_2d": 0.2,
+      "stitch_area_3d": 0.2,
+      "stitch_area_boundary_t": 0.75,
+      "stitch_area_boundary_b": 0.1,
+      "stitch_center_flag":true
+ 
+    },
+    "log": {
+      "dumpFlag": false,
+      "undisFront": "undistortedF.jpg",
+      "undisBack": "undistortedB.jpg",
+      "undisLeft": "undistortedL.jpg",
+      "undisRight": "undistortedR.jpg",
+      "birdFront": "birdF.jpg",
+      "birdBack": "birdB.jpg",
+      "birdLeft": "birdL.jpg",
+      "birdRight": "birdR.jpg",
+      "birdfinetuneFront": "birdfinetuneF.jpg",
+      "birdfinetuneBack": "birdfinetuneB.jpg",
+      "birdfinetuneLeft": "birdfinetuneL.jpg",
+      "birdfinetuneRight": "birdfinetuneR.jpg",
+      "maskFront": "maskFront.jpg",
+      "maskBack": "maskBack.jpg",
+      "maskLeft": "maskLeft.jpg",
+      "maskRight": "maskRight.jpg",
+      "homoTrack":"homo_track.txt",
+      "homoTrackKanzi":"homo_track_kanzi.txt"
+    },
+    "bin": {
+      "opengl_kanzi_flag":1,
+      "kanzi":
+      {
+        "input":{
+          "wheel":"wheel_sight_blender.obj",
+          "wide_angle":"wide_angle_blender.obj",
+          "sw_wide_angle":"superwide_angle_blender.obj"
+        },
+        "output":{
+          "wide_angle_front":"wide_angle_front.obj",
+          "wide_angle_back":"wide_angle_back.obj",
+          "wide_angle_left":"wide_angle_left.obj",
+          "wide_angle_right":"wide_angle_right.obj",
+          "sw_angle_front":"sw_angle_front.obj",
+          "sw_angle_back":"sw_angle_back.obj",
+          "wheel_sight_rf":"wheel_sight_rf.obj",
+          "wheel_sight_rb":"wheel_sight_rb.obj",
+          "wheel_sight_lf":"wheel_sight_lf.obj",
+          "wheel_sight_lb":"wheel_sight_lb.obj",
+          "bowl_front":"bowl_front_kanzi.obj",
+          "bowl_back":"bowl_back_kanzi.obj",
+          "bowl_left":"bowl_left_kanzi.obj",
+          "bowl_right":"bowl_right_kanzi.obj"
+
+        }
+      }, 
+      "3D": {
+        "3D_obj_front": "oval_front_blender.obj",
+        "3D_obj_back": "oval_back_blender.obj",
+        "3D_obj_left": "oval_left_blender.obj",
+        "3D_obj_right": "oval_right_blender.obj",
+        "texture_center_mask_front": "texture_center_f.data",
+        "texture_center_mask_back": "texture_center_b.data",
+        "texture_center_mask_left": "texture_center_l.data",
+        "texture_center_mask_right": "texture_center_r.data"
+        
+      }
+    },
+    "AssistDriveFunc": {
+      "wheel_undis_coeff": 2.5,
+      "wheel_area_coeff_x": 0.5,
+      "wheel_area_coeff_y": 0.4,
+      "wheel_sight_angle": 50,
+      "wheel_sight_vcamera_h": 100,
+      "wheel_sight_vcamera_x": 45,
+      "wheel_sight_screen_height": 880,
+      "wheel_sight_screen_width": 459,
+      "wide_angle_img_map_w": 1102,
+      "wide_angle_img_map_h": 880,
+      "wide_angle_map_offset_x_f": 0,
+      "wide_angle_map_offset_y_f": 0,
+      "wide_angle_map_offset_x_b": 0,
+      "wide_angle_map_offset_y_b": 0,
+      "wide_angle_map_offset_x_l": 0,
+      "wide_angle_map_offset_y_l": 0,
+      "wide_angle_map_offset_x_r": 0,
+      "wide_angle_map_offset_y_r": 0,
+      "wide_angle_map_offset_scale": 0.7,
+      "wide_angle_pose_pitch": 30.0,
+      "wide_angle_correct_pose_fb": true,
+      "wide_angle_correct_pose_lr": true,
+      "fb_sight_undis_coeff": 2.0, 
+      "lr_sight_yaw": 15.0,
+      "lr_sight_offset_y": 50,
+      "lr_sight_scale_x": 0.2,
+      "lr_sight_scale_y": 0.6,
+      "lr_sight_undis_coeff": 2.0,
+      "sw_angle_correct_pose": false,
+      "sw_angle_both_side_width": 1150,
+      "sw_angle_both_side_x_offset": 800,
+      "sw_angle_both_side_y_offset": 650,
+      "sw_angle_both_side_y_bottom_scale": 1,
+      "sw_angle_img_remap_w": 1728,
+      "sw_angle_img_remap_h": 880,
+      "sw_angle_remap_offset_x": 0,
+      "sw_angle_remap_offset_y": -50,
+      "sw_angle_remap_offset_scale": 0.8,
+      "sw_angle_pose_pitch": 10.0,
+      "offroad_wheel_w": 432,
+      "offroad_wheel_h": 670,
+      "offroad_front_w": 864,
+      "offroad_front_h": 670
+    },
+    "fish_scale": 0.5,
+    "fish_width": 1280,
+    "fish_height": 960
+  }
+}

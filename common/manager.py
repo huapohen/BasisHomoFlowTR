@@ -142,7 +142,7 @@ class Manager:
         exp_name = self.params.model_dir.split('/')[-1]
         exp_id = self.params.exp_id
         # get_last_lr() for pytorch version>=1.4.0, otherwise get_lr()
-        print_str = "exp_{} Epoch: {:4d}, lr={:.6f} ".format(
+        print_str = "exp_{} Epoch: {:4d}, lr={:.7f} ".format(
             exp_id, self.epoch, self.scheduler.get_last_lr()[0]
         )
         for k, v in self.loss_status.items():
@@ -160,8 +160,9 @@ class Manager:
         print_str = " | ".join(
             "{}: {:.4f}".format(k, v.avg) for k, v in metric_status.items()
         )
+        exp_info = f'exp_{self.params.exp_id}, epoch={self.params.current_epoch}, '
         self.logger.info(
-            colored("{} Results: {}".format(title, print_str), color, attrs=["bold"])
+            colored("{} {} Results: {}".format(exp_info, title, print_str), color, attrs=["bold"])
         )
 
     def check_best_save_last_checkpoints(self, latest_freq_val=5, latest_freq=5):

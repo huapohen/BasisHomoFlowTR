@@ -93,12 +93,13 @@ def compute_losses(output, input, params):
             fea2_warp = warp_image_from_H(homo_12, fea2_full, *bhw)
         else:
             raise
-
+        
         im_diff_fw = imgs_patch[:, :1, ...] - img2_warp
         im_diff_bw = imgs_patch[:, 1:, ...] - img1_warp
 
         fea_diff_fw = fea1_warp - fea1_patch_warp
         fea_diff_bw = fea2_warp - fea2_patch_warp
+        
 
         # loss
         losses["photo_loss_l1"] = photo_loss_function(
@@ -135,6 +136,7 @@ def compute_losses(output, input, params):
 
 
 def compute_eval_results(data_batch, output_batch, params):
+    start = data_batch['start']
     imgs_full = data_batch["imgs_ori"]
     H_flow_f, H_flow_b = output_batch['H_flow']
     batch_size, _, grid_h, grid_w = imgs_full.shape
@@ -145,7 +147,7 @@ def compute_eval_results(data_batch, output_batch, params):
     if params.model_version == 'basis':
         H_flow_f = upsample2d_flow_as(H_flow_f, imgs_full, mode="bilinear", if_rate=True)
         H_flow_b = upsample2d_flow_as(H_flow_b, imgs_full, mode="bilinear", if_rate=True)
-        img1_full_warp = get_warp_flow(imgs_full[:, :3, ...], H_flow_b, start=0)
+        img1_full_warp = get_warp_flow(imgs_full[:, :3, ...], H_flow_b, start=start)
         # calc err
         points = data_batch["points"]
         for i in range(len(points)):  # len(points)

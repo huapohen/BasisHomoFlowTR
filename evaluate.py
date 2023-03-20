@@ -21,6 +21,8 @@ from loss.losses import compute_losses, compute_eval_results
 from common.manager import Manager
 from parameters import get_config, dictToObj
 from easydict import EasyDict
+from loss.losses import *
+
 
 ''' add this line, because GTX30 serials' default torch.matmul() on cuda is uncorrected '''
 torch.backends.cuda.matmul.allow_tf32 = False
@@ -87,6 +89,10 @@ def evaluate(model, manager):
     MSE_LL = []
     MSE_SF = []
     MSE_LF = []
+    loss_total_list = []
+    loss_photo_list = []
+    loss_feature_list = []
+    loss_triplet_list = []
 
     with torch.no_grad():
         # compute metrics over the dataset
@@ -101,6 +107,11 @@ def evaluate(model, manager):
                 data_batch = utils.tensor_gpu(data_batch)
                 # compute model output
                 output_batch = model(data_batch)
+                losses = compute_losses(output_batch, data_batch, params)
+                loss_total_list.append(losses['total'].item())
+                loss_photo_list.append(losses['photo_loss_l1'].item())
+                loss_feature_list.append(losses['fea_loss_l1'].item())
+                loss_triplet_list.append(losses['triplet_loss'].item())
                 # compute all metrics on this batch
                 eval_results = compute_eval_results(data_batch, output_batch, params)
                 img1s_full_warp = eval_results["img1_full_warp"]
@@ -137,6 +148,13 @@ def evaluate(model, manager):
                 t.set_description(f"{k}:{np.mean(err_avg):.4f}")
                 t.update()
 
+        loss_total_avg = round(np.mean(np.array(loss_total_list)), 4)
+        loss_photo_avg = round(np.mean(np.array(loss_photo_list)), 4)
+        loss_feature_avg = round(np.mean(np.array(loss_feature_list)), 4)
+        loss_triplet_avg = round(np.mean(np.array(loss_triplet_list)), 4)
+        prt_loss = f'total_loss: {loss_total_avg}, photo_loss_l1: {loss_photo_avg}' + \
+            f', fea1_loss: {loss_feature_avg}, triplet_loss: {loss_triplet_avg}'
+        print(prt_loss)
         MSE_RE_avg = sum(MSE_RE) / len(MSE_RE)
         MSE_LT_avg = sum(MSE_LT) / len(MSE_LT)
         MSE_LL_avg = sum(MSE_LL) / len(MSE_LL)
@@ -145,6 +163,10 @@ def evaluate(model, manager):
         MSE_avg = (MSE_RE_avg + MSE_LT_avg + MSE_LL_avg + MSE_SF_avg + MSE_LF_avg) / 5
 
         Metric = {
+            "total_loss": loss_total_avg,
+            "photo_loss_l1": loss_photo_avg,
+            "fea1_loss": loss_feature_avg,
+            "triplet_loss": loss_triplet_avg,
             "MSE_RE_avg": MSE_RE_avg,
             "MSE_LT_avg": MSE_LT_avg,
             "MSE_LL_avg": MSE_LL_avg,
@@ -157,17 +179,21 @@ def evaluate(model, manager):
         )
 
         # update data to logger
+        if 'current_epoch' not in vars(params):
+            params.current_epoch = -1
         manager.logger.info(
             "Loss/valid epoch_{} {}: {:.4f}. RE:{:.4f} LT:{:.4f} LL:{:.4f} SF:{:.4f} LF:{:.4f} ".format(
-                manager.params.eval_type,
-                manager.params.current_epoch,
+                params.eval_type,
+                params.current_epoch,
                 MSE_avg,
                 MSE_RE_avg,
                 MSE_LT_avg,
                 MSE_LL_avg,
                 MSE_SF_avg,
                 MSE_LF_avg,
-            )
+            ) + \
+            f", total_loss: {loss_total_avg}, photo_loss_l1: {loss_photo_avg}" + \
+            f", fea1_loss: {loss_feature_avg}, triplet_loss: {loss_triplet_avg}"
         )
 
         # For each epoch, print the metric

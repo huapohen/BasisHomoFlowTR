@@ -120,14 +120,14 @@ class HomoTrainData(Dataset):
 
 class HomoTestData(Dataset):
     def __init__(self, params):
-
+        self.params = params
         self.mean_I = np.array([118.93, 113.97, 102.60]).reshape(1, 1, 3)
         self.std_I = np.array([69.85, 68.81, 72.45]).reshape(1, 1, 3)
         self.crop_size = params.crop_size
 
         self.normalize = True
         self.horizontal_flip_aug = False
-
+        # ipdb.set_trace()
         self.npy_list = os.path.join(params.test_data_dir, "test_list.txt")
         self.npy_path = os.path.join(params.test_data_dir, "Coordinate-v2")
         self.files_path = os.path.join(params.test_data_dir, "test")
@@ -164,17 +164,29 @@ class HomoTestData(Dataset):
         img2_full = img2_full.unsqueeze(0).float()
 
         # img aug
-        img1_rs, img2_rs = img1, img2
-        if img1.shape[0] != self.crop_size[0] or img1.shape[1] != self.crop_size[1]:
-            img1_rs = cv2.resize(img1_rs, (self.crop_size[1], self.crop_size[0]))
-            img2_rs = cv2.resize(img2_rs, (self.crop_size[1], self.crop_size[0]))
-
-        img1_gray, img2_gray = self.data_aug(
-            img1_rs,
-            img2_rs,
-            normalize=self.normalize,
-            horizontal_flip=self.horizontal_flip_aug,
-        )
+        if self.params.is_add_random_crop:
+            self.horizontal_flip_aug = True
+            img1_gray, img2_gray = self.data_aug(
+                img1,
+                img2,
+                normalize=self.normalize,
+                horizontal_flip=self.horizontal_flip_aug,
+            )
+            img1_gray, img2_gray, start = self.random_crop(img1_gray, img2_gray)
+        else:
+            img1_rs, img2_rs = img1, img2
+            if img1.shape[0] != self.crop_size[0] or img1.shape[1] != self.crop_size[1]:
+                img1_rs = cv2.resize(img1_rs, (self.crop_size[1], self.crop_size[0]))
+                img2_rs = cv2.resize(img2_rs, (self.crop_size[1], self.crop_size[0]))
+            start = [0, 0]
+            img1_gray, img2_gray = self.data_aug(
+                img1_rs,
+                img2_rs,
+                normalize=self.normalize,
+                horizontal_flip=self.horizontal_flip_aug,
+            )
+        
+        
         img1_gray_full, img2_gray_full = self.data_aug(
             img1,
             img2,
@@ -196,8 +208,9 @@ class HomoTestData(Dataset):
             .float()
         )
 
+        x, y = start
         ph, pw = self.crop_size
-        pts = [[0, 0], [pw, 0], [0, ph], [pw, ph]]
+        pts = [[x, y], [pw, y], [x, ph], [pw, ph]]
         pts_1 = torch.from_numpy(np.array(pts)).float()
         pts_2 = torch.from_numpy(np.array(pts)).float()
 
@@ -216,7 +229,7 @@ class HomoTestData(Dataset):
         data_dict = {}
         data_dict["imgs_gray_full"] = imgs_gray_full
         data_dict["imgs_gray_patch"] = imgs_gray
-        data_dict["start"] = torch.tensor([0, 0]).reshape(2, 1, 1).float()
+        data_dict["start"] = torch.tensor(start).reshape(2, 1, 1).float()
 
         data_dict["imgs_ori"] = imgs_ori
         data_dict['img1_full'] = img1_full
@@ -230,9 +243,20 @@ class HomoTestData(Dataset):
         data_dict["npy_name"] = npy_name
 
         return data_dict
+    
+    def random_crop(self, img1, img2):
+            height, width = img1.shape[:2]
+            patch_size_h, patch_size_w = self.crop_size
+            rho = self.params.rho
+            x = np.random.randint(rho, width - rho - patch_size_w)
+            y = np.random.randint(rho, height - rho - patch_size_h)
+            start = [x, y]
+            img1_patch = img1[y : y + patch_size_h, x : x + patch_size_w, :]
+            img2_patch = img2[y : y + patch_size_h, x : x + patch_size_w, :]
+            return img1_patch, img2_patch, start
 
     def data_aug(self, img1, img2, gray=True, normalize=True, horizontal_flip=True):
-
+        
         if horizontal_flip and random.random() <= 0.5:
             img1 = np.flip(img1, 1)
             img2 = np.flip(img2, 1)

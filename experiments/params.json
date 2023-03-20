@@ -47,5 +47,7 @@
     "loss_func_type": "photo",
     "is_exp_rm_protect": false,
     "is_continue_train": false,
-    "model_version": "offset"
+    "model_version": "offset",
+    "calc_gt_photo_loss": false,
+    "is_add_random_crop": false
 }
