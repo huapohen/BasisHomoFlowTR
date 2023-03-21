@@ -1,6 +1,7 @@
 import os
 import sys
 import cv2
+import copy
 import ipdb
 import torch
 import shutil
@@ -11,6 +12,7 @@ import torch.nn.functional as F
 from model import net
 from model.util import *
 from torchvision.utils import save_image
+from ipdb import set_trace as ip
 
 
 def triplet_loss(a, p, n, margin=1.0, exp=1, reduce=False, size_average=False):
@@ -21,10 +23,23 @@ def triplet_loss(a, p, n, margin=1.0, exp=1, reduce=False, size_average=False):
     return triplet_loss(a, p, n)
 
 
-def photo_loss_function(diff, q, averge=True):
+def photo_loss_function(diff, q, averge=True, mask=False):
     diff = (torch.abs(diff) + 0.01).pow(q)
     if averge:
         loss_mean = diff.mean()
+        if mask:
+            _h, _w = diff.shape[2:]
+            loss_mean_list = []
+            for i in range(len(diff)):
+                zero_sum = (diff[i] == 0.01).sum()
+                if zero_sum == _h*_w:
+                    ratio = zero_sum.new_ones(zero_sum.shape).float()
+                else:
+                    ratio =  (_h * _w - zero_sum) / (_h * _w)
+                val = diff[i].mean() / ratio
+                loss_mean_list.append(val.unsqueeze(0))
+            loss_mean = torch.cat(loss_mean_list, 0).mean()
+            # ip()
     else:
         # loss_mean = diff.sum()
         loss_mean = diff
@@ -91,7 +106,92 @@ def camera_loss_sequnce():
     return sequence
 
 
-def compute_losses(output, input, params):
+def save_inference_images(params, output, input, inps):
+    img1_warp, img2_warp, x1_patch, x2_patch, k, loss_f, loss_b = inps
+    vis = 'experiments/vis'
+    if os.path.exists(vis) and k == 0:
+        shutil.rmtree(vis)
+    os.makedirs(vis, exist_ok=True)
+    def unnormalize(im):
+        mean_I = np.array([118.93, 113.97, 102.60]).mean()
+        std_I = np.array([69.85, 68.81, 72.45]).mean()
+        im = im[0].permute(1, 2, 0).cpu().numpy()
+        im = im * std_I
+        # im[im != 0] += mean_I
+        # im[im != 0] = 50
+        return im.astype(np.uint8)
+    i1w = unnormalize(img1_warp)
+    i2w = unnormalize(img2_warp)
+    cv2.imwrite(f'{vis}/{k}_i1w_{loss_b:.4f}.jpg', i1w)
+    cv2.imwrite(f'{vis}/{k}_i2w_{loss_f:.4f}.jpg', i2w)
+    p1 = unnormalize(x1_patch)
+    p2 = unnormalize(x2_patch)
+    cv2.imwrite(f'{vis}/{k}_p1.jpg', p1)
+    cv2.imwrite(f'{vis}/{k}_p2.jpg', p2)
+    imageio.mimsave(f'{vis}/{k}_g1.gif', [p2, i1w], 'GIF', duration=0.5)
+    imageio.mimsave(f'{vis}/{k}_g2.gif', [p1, i2w], 'GIF', duration=0.5)
+    imageio.mimsave(f'{vis}/{k}_ori_gray.gif', [p1, p2], 'GIF', duration=0.5)
+    i1f = input['imgs_ori'][0, :3].permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+    i2f = input['imgs_ori'][0, 3:].permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+    i1f = cv2.cvtColor(i1f, cv2.COLOR_BGR2RGB)
+    i2f = cv2.cvtColor(i2f, cv2.COLOR_BGR2RGB)
+    imageio.mimsave(f'{vis}/{k}_ori_rgb.gif', [i1f, i2f], 'GIF', duration=0.5)
+    
+    if params.is_add_ones_mask:
+        mask1_warp = output["mask_img1_warp"][0][0].permute(1, 2, 0) * 255
+        mask2_warp = output["mask_img2_warp"][0][0].permute(1, 2, 0) * 255
+        mask1_warp = mask1_warp.cpu().numpy().astype(np.uint8)
+        mask2_warp = mask2_warp.cpu().numpy().astype(np.uint8)
+        cv2.imwrite(f'{vis}/{k}_m1w.jpg', mask1_warp)
+        cv2.imwrite(f'{vis}/{k}_m2w.jpg', mask2_warp)
+    if 1:
+        x1_full_warp, x2_full_warp = output['x_full_warp'][0]
+        x1fw = unnormalize(x1_full_warp)
+        x2fw = unnormalize(x2_full_warp)
+        cv2.imwrite(f'{vis}/{k}_x1fw.jpg', x1fw)
+        cv2.imwrite(f'{vis}/{k}_x2fw.jpg', x2fw)
+        
+    if 1:
+        H_flow_f, H_flow_b = output['H_flow'][0]
+        imgs_full = input['imgs_ori']
+        img1_full = imgs_full[:, :3]
+        img2_full = imgs_full[:, 3:]
+        H_flow_f = upsample2d_flow_as(H_flow_f, imgs_full, mode="bilinear", if_rate=True)
+        H_flow_b = upsample2d_flow_as(H_flow_b, imgs_full, mode="bilinear", if_rate=True)
+        img1_full_warp = get_warp_flow(img1_full, H_flow_b, 0)
+        img2_full_warp = get_warp_flow(img2_full, H_flow_f, 0)
+        
+        def to_rgb(img):
+            img = img[0].permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            return img
+        img1_full = to_rgb(img1_full)
+        img2_full = to_rgb(img2_full)
+        img1_full_warp = to_rgb(img1_full_warp)
+        img2_full_warp = to_rgb(img2_full_warp)
+        imageio.mimsave(f'{vis}/{k}_ori_f.gif', [img1_full, img2_full_warp], 'GIF', duration=0.5)
+        imageio.mimsave(f'{vis}/{k}_ori_b.gif', [img2_full, img1_full_warp], 'GIF', duration=0.5)
+        
+        # if 1:
+        if 0:
+            def _unnorm(im):
+                im = im[0].permute(1, 2, 0).cpu().numpy()
+                im = im * 255
+                return im.astype(np.uint8)
+            mask1 = _unnorm(output['mask_img1_warp'][0])
+            mask2 = _unnorm(output['mask_img2_warp'][0])
+            cv2.imwrite(f'{vis}/{k}_mask_b.jpg', mask1)
+            cv2.imwrite(f'{vis}/{k}_mask_f.jpg', mask2)
+            
+            mask1_full = _unnorm(output["mask1_full_warp"][0])
+            mask2_full = _unnorm(output["mask2_full_warp"][0])
+            cv2.imwrite(f'{vis}/{k}_mask_b_full.jpg', mask1_full)
+            cv2.imwrite(f'{vis}/{k}_mask_f_full.jpg', mask2_full)
+        
+        
+    sys.exit()
+
+def compute_losses(output, input, params, k=0):
     losses = {}
     imgs_patch = input['imgs_gray_patch']
     edge_loss = 0
@@ -103,15 +203,32 @@ def compute_losses(output, input, params):
         img2 = imgs_patch[:, i*2+1:i*2+2]
         im_diff_fw = img1 - img2_warp
         im_diff_bw = img2 - img1_warp
-        if params.is_add_ones_mask:
-            im_diff_fw *= output['ones_mask'][i][0]
-            im_diff_bw *= output['ones_mask'][i][1]
         if params.calc_gt_photo_loss:
             im_diff_fw = img1 - img2
             im_diff_bw = img2 - img1
-        photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True)
-        photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True)
-        photo_loss += photo_loss_f + photo_loss_b
+            # ip()
+        if params.is_add_ones_mask:
+            # ip()
+            im_diff_fw *= output['mask_img2_warp'][i]
+            im_diff_bw *= output['mask_img1_warp'][i]
+        is_mask = True if params.is_add_ones_mask else False
+        photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True, mask=is_mask)
+        photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True, mask=is_mask)
+        if params.is_save_intermediate_results:
+            img1_mean = (torch.abs(img1) + 0.01).pow(1).mean()
+            img2_mean = (torch.abs(img2) + 0.01).pow(1).mean()
+            img1w_mean = (torch.abs(img1_warp) + 0.01).pow(1).mean()
+            img2w_mean = (torch.abs(img2_warp) + 0.01).pow(1).mean()
+            print(f'photo_loss_f: {photo_loss_f:.4f}, img1={img1_mean:.4f}, img2w={img2w_mean:.4f}')
+            print(f'photo_loss_b: {photo_loss_b:.4f}, img2={img2_mean:.4f}, img1w={img1w_mean:.4f}')
+            inps = img1_warp, img2_warp, img1, img2, k, photo_loss_f, photo_loss_b
+            save_inference_images(params, output, input, inps)
+        if params.loss_sequence == '21':
+            photo_loss += photo_loss_f
+        elif params.loss_sequence == '12':
+            photo_loss += photo_loss_b
+        else:
+            photo_loss += photo_loss_f + photo_loss_b
         
         if params.is_add_edge_loss:
             edge_diff_f1 = (im_diff_fw[:, :, 1:-1, 1:-1] - im_diff_fw[:, :, 2:, 1:-1]).abs()
@@ -121,8 +238,8 @@ def compute_losses(output, input, params):
             edge_diff_b2 = (im_diff_bw[:, :, 1:-1, 1:-1] - im_diff_bw[:, :, 1:-1, 2:]).abs()
             edge_loss_b = edge_diff_b1 + edge_diff_b2
             if params.is_add_ones_mask:
-                edge_loss_f *= output['ones_mask'][i][0]
-                edge_loss_b *= output['ones_mask'][i][1]
+                edge_loss_f *= output['mask_img2_warp'][i]
+                edge_loss_b *= output['mask_img1_warp'][i]
             edge_loss_f = edge_loss_f.sum()  / (edge_loss_f > 0.01).sum()
             edge_loss_b = edge_loss_b.sum()  / (edge_loss_b > 0.01).sum() 
             edge_loss += edge_loss_f + edge_loss_b
@@ -194,6 +311,7 @@ def compute_eval_results(data_batch, output_batch, params):
     bhw = (batch_size, grid_h, grid_w)
     errs = np.zeros(batch_size)
     img1_full_warp_list = []
+    img2_full_warp_list = []
     
     _h, _w = data_batch['imgs_gray_full'].shape[2:]
     scale_x = grid_w / _w
@@ -206,25 +324,47 @@ def compute_eval_results(data_batch, output_batch, params):
         if params.forward_version == 'offset':
             homo_21, homo_12 = output_batch['H_flow'][i]
             img1_full_warp = warp_image_from_H(homo_21, img_1_full, *bhw)
-            # img2_full_warp = warp_image_from_H(homo_12, img_2_full, *bhw)
+            img2_full_warp = warp_image_from_H(homo_12, img_2_full, *bhw)
             err = geometricDistance_offset(i, data_batch, output_batch, scale_x, scale_y)
         elif params.forward_version == 'basis':
             H_flow_f, H_flow_b = output_batch['H_flow'][i]
             # ipdb.set_trace()
-            # H_flow_f = upsample2d_flow_as(H_flow_f, imgs_full, mode="bilinear", if_rate=True)
+            H_flow_f = upsample2d_flow_as(H_flow_f, imgs_full, mode="bilinear", if_rate=True)
             H_flow_b = upsample2d_flow_as(H_flow_b, imgs_full, mode="bilinear", if_rate=True)
             img1_full_warp = get_warp_flow(img_1_full, H_flow_b, 0)
-            # img2_full_warp = get_warp_flow(img_2_full, H_flow_f, 0)
+            img2_full_warp = get_warp_flow(img_2_full, H_flow_f, 0)
             err = np.float32(0)
         else:
             raise
         
         # ipdb.set_trace()
         img1_full_warp_list.append(img1_full_warp)
+        img2_full_warp_list.append(img2_full_warp)
         errs += err
 
     eval_results = {}
     eval_results["img1_full_warp"] = torch.cat(img1_full_warp_list, 1)
+    eval_results["img2_full_warp"] = torch.cat(img2_full_warp_list, 1)
     eval_results["errs"] = errs / len(params.camera_list)
     
     return eval_results
+
+
+def save_gray_image():
+    # mean_I = torch.tensor([118.93, 113.97, 102.60]).reshape(1, 1, 1, 3)
+    # std_I = torch.tensor([69.85, 68.81, 72.45]).reshape(1, 1, 1, 3)
+    # imgs_ori = data_batch["imgs_ori"].permute(0, 2, 3, 1)
+    # imgs_gray_patch = data_batch["imgs_gray_patch"].permute(0, 2, 3, 1)
+    # imgs_gray_full = data_batch["imgs_gray_full"].permute(0, 2, 3, 1)
+        
+    # imgs_gray_patch = imgs_gray_patch * std_I.mean(3, keepdim=True) + mean_I.mean(3, keepdim=True)
+    # imgs_gray_full = imgs_gray_full * std_I.mean(3, keepdim=True) + mean_I.mean(3, keepdim=True)
+    # for j in range(len(data_batch["imgs_ori"])): 
+    #     cv2.imwrite("./experiments/{}_imgs_ori_{}_{}_1.jpg".format(data_batch["frames_name"][j]), imgs_ori[j][:, :, :3].cpu().numpy().astype(np.uint8))
+    #     cv2.imwrite("./experiments/{}_imgs_gray_patch_{}_{}_1.jpg".format(data_batch["frames_name"][j]), imgs_gray_patch[j][:, :, :1].cpu().numpy().astype(np.uint8))
+    #     cv2.imwrite("./experiments/{}_imgs_gray_full_{}_{}_1.jpg".format(data_batch["frames_name"][j], i, j), imgs_gray_full[j][:, :, :1].cpu().numpy().astype(np.uint8)) 
+
+    #     cv2.imwrite("./experiments/{}_imgs_ori_2.jpg".format(data_batch["frames_name"][j]), imgs_ori[i][:, :, 3:].cpu().numpy().astype(np.uint8))
+    #     cv2.imwrite("./experiments/{}_imgs_gray_patch_2.jpg".format(data_batch["frames_name"][j]), imgs_gray_patch[j][:, :, 1:].cpu().numpy().astype(np.uint8))
+    #     cv2.imwrite("./experiments/{}_imgs_gray_full_{}_{}_2.jpg".format(data_batch["frames_name"][j], i, j), imgs_gray_full[j][:, :, 1:].cpu().numpy().astype(np.uint8)) 
+    pass

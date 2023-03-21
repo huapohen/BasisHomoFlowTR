@@ -12,7 +12,8 @@ from ipdb import set_trace as ip
 
 class HomoData(Dataset):
     def __init__(self, params, mode='train'):
-        # mode = 'train'
+        if params.test_pipeline_dataset == 'train':
+            mode = 'train'
         self.params = params
         self.mode = mode
         self.mean_I = np.array([118.93, 113.97, 102.60]).reshape(1, 1, 3)
@@ -24,14 +25,22 @@ class HomoData(Dataset):
         else:
             raise
         self.rho = params.rho_dybev
+        if self.crop_size[0] == 320:
+            self.rho = 16
+        elif self.crop_size[0] == 160:
+            self.rho = 8
         
         self.is_img_balance = params.is_img_balance
         self.normalize = True
         self.gray = True
-        self.horizontal_flip_aug = True if mode == 'train' else False
+        # self.horizontal_flip_aug = True if mode == 'train' else False
         # self.horizontal_flip_aug = False
         # self.horizontal_flip_aug = True
-        
+        if params.test_pipeline_mode == 'crop':
+            self.horizontal_flip_aug = True
+        elif params.test_pipeline_mode == 'resize':
+            self.horizontal_flip_aug = False
+            
         base_path = '/home/data/lwb/data/dybev/'
         self.data_dir = os.path.join(base_path, params.set_name)
         path = os.path.join(self.data_dir, f'{mode}.txt')
@@ -92,8 +101,9 @@ class HomoData(Dataset):
         for i in range(int(len(img_names) / 2)):
             img1 = cv2.imread(f'{data_dir}/{img_names[i * 2]}')
             img2 = cv2.imread(f'{data_dir}/{img_names[i * 2 + 1].rsplit()[0]}')
-            img1 = cv2.resize(img1, (640, 360))
-            img2 = cv2.resize(img2, (640, 360))
+            if self.crop_size[0] == 320:
+                img1 = cv2.resize(img1, (640, 360))
+                img2 = cv2.resize(img2, (640, 360))
             # ipdb.set_trace()
             img1_full, img2_full, img1_patch, img2_patch, px, py = self.data_aug(img1, img2)
             patch_list += [img1_patch, img2_patch]
@@ -189,10 +199,15 @@ class HomoData(Dataset):
             img1 = (img1 - self.mean_I) / self.std_I
             img2 = (img2 - self.mean_I) / self.std_I
 
-        aug_func = random_crop if self.mode == 'train' else resize
-        # aug_func = resize
-        # aug_func = random_crop
+        # aug_func = random_crop if self.mode == 'train' else resize
+        if self.params.test_pipeline_mode == 'crop':
+            aug_func = random_crop
+        elif self.params.test_pipeline_mode == 'resize':
+            aug_func = resize
+        else:
+            raise
         img1_aug, img2_aug, px, py = aug_func(img1, img2)
+        # img1_aug, img2_aug, px, py = img1, img2, 0, 0
         
         if self.gray:
             img1 = np.mean(img1, axis=2, keepdims=True)

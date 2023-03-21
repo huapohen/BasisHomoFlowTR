@@ -78,5 +78,9 @@
     "is_add_edge_loss": false,
     "is_add_photo_loss": true,
     "is_add_ones_mask": false,
-    "calc_gt_photo_loss": false
+    "calc_gt_photo_loss": false,
+    "loss_sequence": "all",
+    "test_pipeline_mode": "resize",
+    "test_pipeline_dataset": "test",
+    "is_save_intermediate_results": false
 }

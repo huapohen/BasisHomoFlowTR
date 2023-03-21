@@ -1,13 +1,14 @@
 import cv2
 import sys
 import ipdb
+import copy
 import logging
 import warnings
 import numpy as np
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ipdb import set_trace as ip
 
 from model.util import *
 from easydict import EasyDict
@@ -104,7 +105,12 @@ class Net(nn.Module):
             'points_pred': [],
             'H_flow': [],
             "img_warp": [],
-            'ones_mask': [],
+            'mask_img1_warp': [],
+            'mask_img2_warp': [],
+            'x_full_warp': [],
+            'H_full': [],
+            'mask1_full_warp': [],
+            'mask2_full_warp': [],
         }
         
         num_cameras = int(c / 2)
@@ -114,7 +120,10 @@ class Net(nn.Module):
             x2_patch = input['imgs_gray_patch'][:, i*2+1:i*2+2]
             x1_full = input["imgs_gray_full"][:, i*2:i*2+1]
             x2_full = input["imgs_gray_full"][:, i*2+1:i*2+2]
-            ones = x1_full.new_ones(x1_full.shape)
+            ones_patch = x1_patch.new_ones(x1_patch.shape)
+            ones_full = x1_full.new_ones(x1_full.shape)
+            scale_x = x1_full.shape[3] / x1_patch.shape[3]
+            scale_y = x1_full.shape[2] / x1_patch.shape[2]
             
             fea1_patch = self.share_feature(x1_patch)
             fea2_patch = self.share_feature(x2_patch)
@@ -125,16 +134,51 @@ class Net(nn.Module):
             if params.forward_version == 'basis':
                 weight_f = self.nets_forward(x1).reshape(-1, 8, 1)
                 weight_b = self.nets_forward(x2).reshape(-1, 8, 1)
-                H_flow_f = (self.basis * weight_f).sum(1).reshape(*b2hw)
-                H_flow_b = (self.basis * weight_b).sum(1).reshape(*b2hw)
-                img1_warp = get_warp_flow(x1_full, H_flow_b, start)  # _b  2<-1
-                img2_warp = get_warp_flow(x2_full, H_flow_f, start)  # _f  1<-2
+                H_flow_f = (self.basis * weight_f).sum(1).reshape(*b2hw)# * 0
+                H_flow_b = (self.basis * weight_b).sum(1).reshape(*b2hw)# * 0
+                if params.test_pipeline_mode == 'resize' and params.forward_mode == 'eval':
+                    H_patch_b = copy.deepcopy(H_flow_b)
+                    H_patch_f = copy.deepcopy(H_flow_f)
+                    H_patch_b[:, 0] *= scale_x
+                    H_patch_b[:, 1] *= scale_y
+                    H_patch_f[:, 0] *= scale_x
+                    H_patch_f[:, 1] *= scale_y
+                    img1_warp = get_warp_flow(x1_patch, H_patch_b, start)  # _b  2<-1
+                    img2_warp = get_warp_flow(x2_patch, H_patch_f, start)  # _f  1<-2
+                else:
+                    img1_warp = get_warp_flow(x1_full, H_flow_b, start)  # _b  2<-1
+                    img2_warp = get_warp_flow(x2_full, H_flow_f, start)  # _f  1<-2
                 output["img_warp"].append([img1_warp, img2_warp])
                 output["H_flow"].append([H_flow_f, H_flow_b])
                 if params.is_add_ones_mask:
-                    ones_mask_f = get_warp_flow(ones, H_flow_b, start)
-                    ones_mask_b = get_warp_flow(ones, H_flow_f, start)
-                    output["ones_mask"].append([ones_mask_f, ones_mask_b])
+                    if params.test_pipeline_mode == 'crop':
+                        H_patch_f = upsample2d_flow_as(H_flow_f, x1_full, mode="bilinear", if_rate=True)
+                        H_patch_b = upsample2d_flow_as(H_flow_b, x1_full, mode="bilinear", if_rate=True)
+                    else:
+                        H_patch_b = copy.deepcopy(H_flow_b)
+                        H_patch_f = copy.deepcopy(H_flow_f)
+                        H_patch_b[:, 0] *= scale_x
+                        H_patch_b[:, 1] *= scale_y
+                        H_patch_f[:, 0] *= scale_x
+                        H_patch_f[:, 1] *= scale_y
+                    mask_img1_warp = get_warp_flow(ones_patch, H_patch_b, start)
+                    mask_img2_warp = get_warp_flow(ones_patch, H_patch_f, start)
+                    output["mask_img1_warp"].append(mask_img1_warp)
+                    output["mask_img2_warp"].append(mask_img2_warp)
+                    
+                    
+                    H_full_f = upsample2d_flow_as(H_flow_f, x1_full, mode="bilinear", if_rate=True)
+                    H_full_b = upsample2d_flow_as(H_flow_b, x1_full, mode="bilinear", if_rate=True)
+                    output["mask1_full_warp"].append(get_warp_flow(ones_full, H_full_b, start))
+                    output["mask2_full_warp"].append(get_warp_flow(ones_full, H_full_f, start))
+                    
+                if 1:
+                    H_full_f = upsample2d_flow_as(H_flow_f, x1_full, mode="bilinear", if_rate=True)
+                    H_full_b = upsample2d_flow_as(H_flow_b, x1_full, mode="bilinear", if_rate=True)
+                    x1_full_warp = get_warp_flow(x1_full, H_full_b, start)
+                    x2_full_warp = get_warp_flow(x2_full, H_full_f, start)
+                    output["H_full"].append([H_full_f, H_full_b])
+                    output["x_full_warp"].append([x1_full_warp, x2_full_warp])
                 
             elif params.forward_version == 'offset':
                 offset_1 = self.nets_forward(x1)
@@ -152,9 +196,10 @@ class Net(nn.Module):
                 output['H_flow'].append([homo_21, homo_12])
                 output["img_warp"].append([img1_warp, img2_warp])
                 if params.is_add_ones_mask:
-                    ones_mask_f = warp_image_from_H(homo_21, ones, *bhw)
-                    ones_mask_b = warp_image_from_H(homo_12, ones, *bhw)
-                    output["ones_mask"].append([ones_mask_f, ones_mask_b])
+                    mask_img1_warp = warp_image_from_H(homo_21, ones_patch, *bhw)
+                    mask_img2_warp = warp_image_from_H(homo_12, ones_patch, *bhw)
+                    output["mask_img1_warp"].append(mask_img1_warp)
+                    output["mask_img2_warp"].append(mask_img2_warp)
             
         return output
     
@@ -193,8 +238,8 @@ def util_test_net_forward():
     import json
 
     # ipdb.set_trace()
-    px, py = 63, 39
-    pw, ph = 576, 320
+    # px, py = 63, 39
+    # pw, ph = 576, 320
     px, py = 0, 0
     pw, ph = 300, 300
     pts = [[px, py], [px + pw, py], [px, py + ph], [px + pw, py + ph]]
@@ -211,8 +256,14 @@ def util_test_net_forward():
     data_dict["imgs_gray_patch"] = torch.cat([input_patch, input_patch], dim=1).cuda()
     data_dict['points_1'] = pts_1.cuda()
     data_dict['points_2'] = pts_2.cuda()
+    data_dict['start'] = torch.tensor([0, 0]).reshape(2, 1, 1).float().cuda()
 
-    params = EasyDict({'crop_size': (ph, pw)})
+    with open('experiments/params.json') as f:
+        params = EasyDict(json.load(f))
+    params.crop_size = [ph, pw]
+    # params.forward_version = 'offset'
+    params.forward_version = 'basis'
+    params.set_name = 'nature'
     net = Net(params)
     net.cuda()
 

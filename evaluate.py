@@ -60,6 +60,7 @@ def evaluate(model, manager):
     manager.reset_metric_status(manager.params.eval_type)
     model.eval()
     params = manager.params
+    params.forward_mode = 'eval'
 
     kpr_list = []
     loss_total_list = []
@@ -77,7 +78,7 @@ def evaluate(model, manager):
                 fnames = data_batch["frames_name"]
                 data_batch = utils.tensor_gpu(data_batch)
                 output_batch = model(data_batch)
-                losses = compute_losses(output_batch, data_batch, manager.params)
+                losses = compute_losses(output_batch, data_batch, manager.params, k)
                 loss_total_list.append(losses['total'].item())
                 if params.is_add_photo_loss:
                     loss_photo_list.append(losses['photo'].item())
@@ -85,13 +86,14 @@ def evaluate(model, manager):
                     loss_edge_list.append(losses['edge'].item())
                 eval_results = compute_eval_results(data_batch, output_batch, params)
                 img1s_full_warp = eval_results["img1_full_warp"]
+                img2s_full_warp = eval_results["img2_full_warp"]
                 err_avg = eval_results["errs"]
                 # err_avg = np.float32(0)
                 bs = len(fnames)
                 for j in range(bs):
                     # break
                     err = round(err_avg[j], 4)
-                    prt_err = f'pts-err_{err}' if err != 0 else ''
+                    prt_err = f'err_{err}' if err != 0 else ''
 
                     if k % params.save_iteration == 0 and params.is_save_gif:
                         for i, camera in enumerate(params.camera_list):
@@ -107,8 +109,8 @@ def evaluate(model, manager):
                             ind = f'{k*bs+j+1}_b{k}_{j}'
                             prefix = f'{ind}_{fnames[j]}_{camera}_{prt_err}'
                             if params.save_iteration == bs and bs == 1:
-                                prefix = f"loss-{losses['total'].item():.4f}, " + prefix
-                            print(prefix)
+                                prefix = f"loss_{losses['total'].item():.4f}__" + prefix
+                            # print(prefix)
                             
                             save_file = [img2_full, img1_full_warp]
                             save_name = f'{prefix}_pred'
@@ -125,10 +127,24 @@ def evaluate(model, manager):
     
                             kpr_list.append(f'{prt_err[8:]} {prefix}')
                             
+                            if 1:
+                                img1_full = imgs_full[j, i*6:i*6+3].permute(1, 2, 0)
+                                img1_full = img1_full.cpu().numpy().astype(np.uint8)
+                                img1_full = cv2.cvtColor(img1_full, cv2.COLOR_BGR2RGB)
+                                # ip()
+                                img2_full_warp = img2s_full_warp[j, i*3:i*3+3].permute(1, 2, 0)
+                                img2_full_warp = img2_full_warp.cpu().numpy().astype(np.uint8)
+                                img2_full_warp = cv2.cvtColor(img2_full_warp, cv2.COLOR_BGR2RGB)
+                                
+                                save_file = [img1_full, img2_full_warp]
+                                save_name = f'{prefix}_pred_versus'
+                                eval_save_result(save_file, save_name, manager, k, j, i, 1)
+                                
                 # prt_str = f"{k}:{np.mean(err_avg):.4f} "
                 # kpr_list.append(prt_str)
                 # t.set_description(prt_str)
                 t.update()
+                # break
         loss_total_avg = round(np.mean(np.array(loss_total_list)), 4)
         loss_edge_avg = round(np.mean(np.array(loss_edge_list)), 4)
         loss_photo_avg = round(np.mean(np.array(loss_photo_list)), 4)
@@ -161,7 +177,7 @@ def evaluate(model, manager):
 
         # update data to logger
         manager.logger.info(
-            "Loss/Test: epoch_{}, {}. ".format(
+            "Loss/Test: epoch_{}, {} ".format(
                 manager.epoch_val,
                 prt_loss,
             )
@@ -178,7 +194,7 @@ def evaluate(model, manager):
         model.train()
 
 
-def eval_save_result(save_file, save_name, manager, k, j, i, m):
+def eval_save_result(save_file, save_name, manager, k, j, i,  m):
 
     type_name = 'gif' if type(save_file) == list else 'jpg'
     save_dir_gif = os.path.join(manager.params.model_dir, type_name)
