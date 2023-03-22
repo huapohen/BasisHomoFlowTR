@@ -112,13 +112,15 @@ def save_inference_images(params, output, input, inps):
     if os.path.exists(vis) and k == 0:
         shutil.rmtree(vis)
     os.makedirs(vis, exist_ok=True)
-    def unnormalize(im):
+    def unnormalize(im, multiply_std=True, add_mean=False):
         mean_I = np.array([118.93, 113.97, 102.60]).mean()
         std_I = np.array([69.85, 68.81, 72.45]).mean()
         im = im[0].permute(1, 2, 0).cpu().numpy()
         im = im * std_I
-        # im[im != 0] += mean_I
-        # im[im != 0] = 50
+        # ip()
+        if add_mean:
+            im[im != 0] += mean_I
+            # im[im != 0] = 50
         return im.astype(np.uint8)
     i1w = unnormalize(img1_warp)
     i2w = unnormalize(img2_warp)
@@ -144,6 +146,23 @@ def save_inference_images(params, output, input, inps):
         mask2_warp = mask2_warp.cpu().numpy().astype(np.uint8)
         cv2.imwrite(f'{vis}/{k}_m1w.jpg', mask1_warp)
         cv2.imwrite(f'{vis}/{k}_m2w.jpg', mask2_warp)
+        # --------------------------------------------------
+        i1w_m = output["mask_img1_warp"][0]
+        i2w_m = output["mask_img2_warp"][0]
+        m_img1w = img1_warp * i1w_m
+        m_img2w = img2_warp * i2w_m
+        m_img1w_sub = img1_warp * (i1w_m > 0.001)
+        m_img2w_sub = img2_warp * (i2w_m > 0.001)
+        m_img1w_reverse = img1_warp * (~i1w_m.bool())
+        m_img2w_reverse = img2_warp * (~i2w_m.bool())
+        ip() # i1w_m[0, 0, :50, 140:]
+        ind = 0
+        names = ['m_img1w', 'm_img2w', 'm_img1w_reverse', 'm_img2w_reverse', 'm_img1w_sub', 'm_img2w_sub']
+        for ix in [m_img1w, m_img2w, m_img1w_reverse, m_img2w_reverse, m_img1w_sub, m_img2w_sub]:
+            ix = unnormalize(ix, multiply_std=True, add_mean=True)
+            cv2.imwrite(f'{vis}/{k}_{names[ind]}.jpg', ix)
+            ind += 1
+        
     if 1:
         x1_full_warp, x2_full_warp = output['x_full_warp'][0]
         x1fw = unnormalize(x1_full_warp)
@@ -191,6 +210,7 @@ def save_inference_images(params, output, input, inps):
         
     sys.exit()
 
+
 def compute_losses(output, input, params, k=0):
     losses = {}
     imgs_patch = input['imgs_gray_patch']
@@ -206,14 +226,13 @@ def compute_losses(output, input, params, k=0):
         if params.calc_gt_photo_loss:
             im_diff_fw = img1 - img2
             im_diff_bw = img2 - img1
-            # ip()
         if params.is_add_ones_mask:
-            # ip()
             im_diff_fw *= output['mask_img2_warp'][i]
             im_diff_bw *= output['mask_img1_warp'][i]
         is_mask = True if params.is_add_ones_mask else False
         photo_loss_f = photo_loss_function(diff=im_diff_fw, q=1, averge=True, mask=is_mask)
         photo_loss_b = photo_loss_function(diff=im_diff_bw, q=1, averge=True, mask=is_mask)
+        
         if params.is_save_intermediate_results:
             img1_mean = (torch.abs(img1) + 0.01).pow(1).mean()
             img2_mean = (torch.abs(img2) + 0.01).pow(1).mean()
@@ -223,6 +242,7 @@ def compute_losses(output, input, params, k=0):
             print(f'photo_loss_b: {photo_loss_b:.4f}, img2={img2_mean:.4f}, img1w={img1w_mean:.4f}')
             inps = img1_warp, img2_warp, img1, img2, k, photo_loss_f, photo_loss_b
             save_inference_images(params, output, input, inps)
+            
         if params.loss_sequence == '21':
             photo_loss += photo_loss_f
         elif params.loss_sequence == '12':
@@ -348,23 +368,3 @@ def compute_eval_results(data_batch, output_batch, params):
     eval_results["errs"] = errs / len(params.camera_list)
     
     return eval_results
-
-
-def save_gray_image():
-    # mean_I = torch.tensor([118.93, 113.97, 102.60]).reshape(1, 1, 1, 3)
-    # std_I = torch.tensor([69.85, 68.81, 72.45]).reshape(1, 1, 1, 3)
-    # imgs_ori = data_batch["imgs_ori"].permute(0, 2, 3, 1)
-    # imgs_gray_patch = data_batch["imgs_gray_patch"].permute(0, 2, 3, 1)
-    # imgs_gray_full = data_batch["imgs_gray_full"].permute(0, 2, 3, 1)
-        
-    # imgs_gray_patch = imgs_gray_patch * std_I.mean(3, keepdim=True) + mean_I.mean(3, keepdim=True)
-    # imgs_gray_full = imgs_gray_full * std_I.mean(3, keepdim=True) + mean_I.mean(3, keepdim=True)
-    # for j in range(len(data_batch["imgs_ori"])): 
-    #     cv2.imwrite("./experiments/{}_imgs_ori_{}_{}_1.jpg".format(data_batch["frames_name"][j]), imgs_ori[j][:, :, :3].cpu().numpy().astype(np.uint8))
-    #     cv2.imwrite("./experiments/{}_imgs_gray_patch_{}_{}_1.jpg".format(data_batch["frames_name"][j]), imgs_gray_patch[j][:, :, :1].cpu().numpy().astype(np.uint8))
-    #     cv2.imwrite("./experiments/{}_imgs_gray_full_{}_{}_1.jpg".format(data_batch["frames_name"][j], i, j), imgs_gray_full[j][:, :, :1].cpu().numpy().astype(np.uint8)) 
-
-    #     cv2.imwrite("./experiments/{}_imgs_ori_2.jpg".format(data_batch["frames_name"][j]), imgs_ori[i][:, :, 3:].cpu().numpy().astype(np.uint8))
-    #     cv2.imwrite("./experiments/{}_imgs_gray_patch_2.jpg".format(data_batch["frames_name"][j]), imgs_gray_patch[j][:, :, 1:].cpu().numpy().astype(np.uint8))
-    #     cv2.imwrite("./experiments/{}_imgs_gray_full_{}_{}_2.jpg".format(data_batch["frames_name"][j], i, j), imgs_gray_full[j][:, :, 1:].cpu().numpy().astype(np.uint8)) 
-    pass

@@ -136,6 +136,7 @@ class Net(nn.Module):
                 weight_b = self.nets_forward(x2).reshape(-1, 8, 1)
                 H_flow_f = (self.basis * weight_f).sum(1).reshape(*b2hw)# * 0
                 H_flow_b = (self.basis * weight_b).sum(1).reshape(*b2hw)# * 0
+                
                 if params.test_pipeline_mode == 'resize' and params.forward_mode == 'eval':
                     H_patch_b = copy.deepcopy(H_flow_b)
                     H_patch_f = copy.deepcopy(H_flow_f)
@@ -150,6 +151,7 @@ class Net(nn.Module):
                     img2_warp = get_warp_flow(x2_full, H_flow_f, start)  # _f  1<-2
                 output["img_warp"].append([img1_warp, img2_warp])
                 output["H_flow"].append([H_flow_f, H_flow_b])
+                
                 if params.is_add_ones_mask:
                     if params.test_pipeline_mode == 'crop':
                         H_patch_f = upsample2d_flow_as(H_flow_f, x1_full, mode="bilinear", if_rate=True)
@@ -166,11 +168,11 @@ class Net(nn.Module):
                     output["mask_img1_warp"].append(mask_img1_warp)
                     output["mask_img2_warp"].append(mask_img2_warp)
                     
-                    
-                    H_full_f = upsample2d_flow_as(H_flow_f, x1_full, mode="bilinear", if_rate=True)
-                    H_full_b = upsample2d_flow_as(H_flow_b, x1_full, mode="bilinear", if_rate=True)
-                    output["mask1_full_warp"].append(get_warp_flow(ones_full, H_full_b, start))
-                    output["mask2_full_warp"].append(get_warp_flow(ones_full, H_full_f, start))
+                    if 0:
+                        H_full_f = upsample2d_flow_as(H_flow_f, x1_full, mode="bilinear", if_rate=True)
+                        H_full_b = upsample2d_flow_as(H_flow_b, x1_full, mode="bilinear", if_rate=True)
+                        output["mask1_full_warp"].append(get_warp_flow(ones_full, H_full_b, start))
+                        output["mask2_full_warp"].append(get_warp_flow(ones_full, H_full_f, start))
                     
                 if 1:
                     H_full_f = upsample2d_flow_as(H_flow_f, x1_full, mode="bilinear", if_rate=True)
