@@ -54,7 +54,7 @@ def test_config(cfg, args=None):
     # cfg.calc_gt_photo_loss = True
     # cfg.set_name = 'b16_cp'
     # cfg.set_name = 'b16'
-    # cfg.is_add_ones_mask = True
+    cfg.is_add_ones_mask = True
     # cfg.is_img_balance = False
     # cfg.is_img_balance = True
     # cfg.crop_size_outdoor = [192, 192]
@@ -78,10 +78,10 @@ def test_config(cfg, args=None):
     # cfg.is_vis_and_exit = True
     # cfg.is_debug_dataloader = True
     # cfg.eval_visualize_save = False
-    
+
     cfg.dataset_type = "test"
     cfg.restore_file = "model_latest.pth"
-    
+
     if 'exp_id' in vars(args):
         cfg.exp_id = args.exp_id
 
@@ -123,7 +123,7 @@ def common_config(cfg):
         sys.exit()
     if 'is_debug_dataloader' in dictToObj(cfg) and cfg.is_debug_dataloader:
         cfg.num_workers = 0
-        
+
     return cfg
 
 

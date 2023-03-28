@@ -258,10 +258,16 @@ class Net(nn.Module):
                 if params.is_add_ones_mask:
                     m1w = warp_image_from_H(homo_21, ones_full, *bhw)
                     m2w = warp_image_from_H(homo_12, ones_full, *bhw)
+                    if (
+                        params.test_pipeline_mode == 'resize'
+                        and params.forward_mode == 'eval'
+                    ):
+                        m1w = F.interpolate(m1w, size=(ph, pw), mode='nearest')
+                        m2w = F.interpolate(m2w, size=(ph, pw), mode='nearest')
                     output["mask_img1_warp"].append(m1w)
                     output["mask_img2_warp"].append(m2w)
 
-                    if 1:
+                    if 0:
                         inps = [homo_21, homo_12, ones_full, bhw]
                         inps += [m1w, img1_warp, x2_patch]
                         self.test_pipeline(inps)
