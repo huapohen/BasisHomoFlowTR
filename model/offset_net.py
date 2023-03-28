@@ -19,17 +19,6 @@ class Net(nn.Module):
         self.params = params
         self.inplanes = 64
         self.layers = [3, 4, 6, 3]
-        # input resolution: 616, 880
-        fl_pts, fr_pts = [(70, 80), (160, 180)], [(546, 80), (456, 180)]
-        bl_pts, br_pts = [(70, 800), (160, 700)], [(456, 700), (546, 800)]
-        points_f = np.array([*fl_pts, *fr_pts], dtype=np.float32)
-        points_b = np.array([*bl_pts, *br_pts], dtype=np.float32)
-        points_l = np.array([*fl_pts, *bl_pts], dtype=np.float32)
-        points_r = np.array([*fr_pts, *br_pts], dtype=np.float32)
-        self.register_buffer('points_f', torch.from_numpy(points_f.reshape(1, 4, 2)))
-        self.register_buffer('points_b', torch.from_numpy(points_b.reshape(1, 4, 2)))
-        self.register_buffer('points_l', torch.from_numpy(points_l.reshape(1, 4, 2)))
-        self.register_buffer('points_r', torch.from_numpy(points_r.reshape(1, 4, 2)))
 
         self.share_feature = ShareFeature(3, 4, 8, 3)
         self.conv1 = nn.Conv2d(
@@ -92,7 +81,7 @@ class Net(nn.Module):
 
         return y
 
-    def compute_homo(self, input):
+    def forward(self, input):
         fea_f = self.share_feature(input['img_f'])
         fea_b = self.share_feature(input['img_b'])
         fea_l = self.share_feature(input['img_l'])
@@ -112,25 +101,28 @@ class Net(nn.Module):
         output['offset_l'] = offsets[:, 16:24].reshape(-1, 4, 2)
         output['offset_r'] = offsets[:, 24:32].reshape(-1, 4, 2)
 
-        if self.points_f.device != fea_f.device:
-            self.points_f = self.points_f.to(fea_f)
-            self.points_b = self.points_b.to(fea_f)
-            self.points_l = self.points_l.to(fea_f)
-            self.points_r = self.points_r.to(fea_f)
+        img_f = input['img_f']
+        if self.points_f.device != img_f.device:
+            self.points_f = self.points_f.to(img_f)
+            self.points_b = self.points_b.to(img_f)
+            self.points_l = self.points_l.to(img_f)
+            self.points_r = self.points_r.to(img_f)
 
         output['points_f_pred'] = self.points_f + output['offset_f']
         output['points_b_pred'] = self.points_b + output['offset_b']
         output['points_l_pred'] = self.points_l + output['offset_l']
         output['points_r_pred'] = self.points_r + output['offset_r']
-        output['homo_f'] = dlt_homo(output['points_f_pred'], self.points_f)
-        output['homo_b'] = dlt_homo(output['points_b_pred'], self.points_b)
-        output['homo_l'] = dlt_homo(output['points_l_pred'], self.points_l)
-        output['homo_r'] = dlt_homo(output['points_r_pred'], self.points_r)
 
         return output
 
-    def forward(self, input):
-        return self.compute_homo(input)
+
+def compute_homo(input, output):
+    output['homo_f'] = dlt_homo(output['points_f_pred'], input['points_f'])
+    output['homo_b'] = dlt_homo(output['points_b_pred'], input['points_b'])
+    output['homo_l'] = dlt_homo(output['points_l_pred'], input['points_l'])
+    output['homo_r'] = dlt_homo(output['points_r_pred'], input['points_r'])
+
+    return output
 
 
 def warp_image_fblr(input, output):
@@ -715,12 +707,25 @@ if __name__ == '__main__':
     input['img_l'] = np.ones((h, w, c), dtype=np.uint8)
     input['img_r'] = np.ones((h, w, c), dtype=np.uint8)
 
+    # input resolution: 616, 880
+    fl_pts, fr_pts = [(70, 80), (160, 180)], [(546, 80), (456, 180)]
+    bl_pts, br_pts = [(70, 800), (160, 700)], [(456, 700), (546, 800)]
+    points_f = np.array([*fl_pts, *fr_pts], dtype=np.float32)
+    points_b = np.array([*bl_pts, *br_pts], dtype=np.float32)
+    points_l = np.array([*fl_pts, *bl_pts], dtype=np.float32)
+    points_r = np.array([*fr_pts, *br_pts], dtype=np.float32)
+    input['points_f'] = torch.from_numpy(points_f.reshape(1, 4, 2))
+    input['points_b'] = torch.from_numpy(points_b.reshape(1, 4, 2))
+    input['points_l'] = torch.from_numpy(points_l.reshape(1, 4, 2))
+    input['points_r'] = torch.from_numpy(points_r.reshape(1, 4, 2))
+
     for k, img in input.items():
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
         input[k] = torch.from_numpy(img[np.newaxis].astype(np.float32)).cuda()
 
     with torch.no_grad():
         output = net(input)
+        output = compute_homo(input, output)
         output = warp_image_fblr(input, output)
 
     print(output.keys())
