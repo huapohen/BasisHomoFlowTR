@@ -599,9 +599,10 @@ def upsample2d_flow_as(inputs, target_as, mode="bilinear", if_rate=False):
 def warp_image_from_H(homo, img, batch_size, h_patch, w_patch):
     grid = get_grid(batch_size, h_patch, w_patch)
     flow, vgrid = get_flow(homo, grid, h_patch, w_patch, 1)
-    grids = vgrid + flow
+    grids = vgrid + flow # can add delta: += delta_grids
     # img_warp = transformer(img, grids)
     grids = grids.permute(0, 2, 3, 1)
+    # pytorch requires input to be -1 to 1
     grids[..., 0] = grids[...,  0] / img.shape[3] * 2 - 1
     grids[..., 1] = grids[...,  1] / img.shape[2] * 2 - 1
     img_warp = F.grid_sample(img, grids, mode='bilinear')

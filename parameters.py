@@ -6,17 +6,18 @@ from yacs.config import CfgNode as CN
 
 
 def train_config(cfg):
-    cfg.exp_id = 41
+    cfg.exp_id = 42
     cfg.exp_description = f' exp_{cfg.exp_id}: '
-    cfg.exp_description += ' offset: b16 + 320x576 + 300 epoch + 1e-3 + 0.97 + img_balance '
+    cfg.exp_description += ' like exp_41, add mask '
     # cfg.exp_description += ' outdoor b16 img_balance + add edge loss + nature=0.02 '
-    cfg.gpu_used = '2'
+    cfg.gpu_used = '3'
     cfg.train_data_ratio = 1.0
     cfg.is_img_balance = True
+    cfg.is_add_ones_mask = True
     cfg.eval_freq = 20
     # cfg.is_add_edge_loss = True
     # cfg.is_add_photo_loss = False
-    # cfg.is_include_dataset_nature = True
+    cfg.is_include_dataset_nature = True
     # cfg.is_only_nature_dataset = True
     cfg.dataset_nature_ratio = 0.02
     cfg.num_workers = 8
@@ -44,28 +45,29 @@ def train_config(cfg):
 
 def test_config(cfg, args=None):
 
-    cfg.exp_id = 38
+    cfg.exp_id = 41
     # cfg.gpu_used = '6'
-    cfg.gpu_used = '5'
-    cfg.test_pipeline_dataset = 'test'
-    cfg.test_pipeline_mode = 'resize'
+    cfg.gpu_used = '2'
+    # cfg.test_pipeline_dataset = 'test'
+    # cfg.test_pipeline_mode = 'resize'
+    # cfg.test_pipeline_mode = 'crop'
     # cfg.calc_gt_photo_loss = True
     # cfg.set_name = 'b16_cp'
-    cfg.set_name = 'b16'
-    cfg.is_add_ones_mask = True
+    # cfg.set_name = 'b16'
+    # cfg.is_add_ones_mask = True
     # cfg.is_img_balance = False
-    cfg.is_img_balance = True
+    # cfg.is_img_balance = True
     # cfg.crop_size_outdoor = [192, 192]
-    cfg.is_save_intermediate_results = True
+    # cfg.is_save_intermediate_results = True
     # cfg.loss_sequence = '21' # img1 - img2_warp
     # cfg.loss_sequence = '12' # img2 - img1_warp
-    cfg.loss_sequence = 'all'
+    # cfg.loss_sequence = 'all'
     # cfg.crop_size_outdoor = [320, 576]
     # cfg.rho_dybev = 16
     # cfg.is_include_dataset_nature = True
     cfg.is_include_dataset_nature = False
     # 推理时开启photo_loss
-    cfg.is_add_photo_loss = True
+    # cfg.is_add_photo_loss = True
     # cfg.is_only_nature_dataset = True
     cfg.save_iteration = 1
     cfg.is_save_gif = True
@@ -76,9 +78,10 @@ def test_config(cfg, args=None):
     # cfg.is_vis_and_exit = True
     # cfg.is_debug_dataloader = True
     # cfg.eval_visualize_save = False
+    
     cfg.dataset_type = "test"
     cfg.restore_file = "model_latest.pth"
-
+    
     if 'exp_id' in vars(args):
         cfg.exp_id = args.exp_id
 

@@ -26,6 +26,7 @@ from parameters import get_config, dictToObj
 from easydict import EasyDict
 
 torch.backends.cuda.matmul.allow_tf32 = False
+# torch.backends.cuda.matmul.allow_tf32 = True
 
 
 parser = argparse.ArgumentParser()
@@ -71,7 +72,7 @@ def evaluate(model, manager):
         # compute metrics over the dataset
         iter_max = len(manager.dataloaders[params.eval_type])
         with tqdm(total=iter_max) as t:
-        # if 1:
+            # if 1:
             for k, data_batch in enumerate(manager.dataloaders[params.eval_type]):
                 # data parse
                 imgs_full = data_batch["imgs_ori"]
@@ -98,53 +99,73 @@ def evaluate(model, manager):
                     if k % params.save_iteration == 0 and params.is_save_gif:
                         for i, camera in enumerate(params.camera_list):
                             # pred
-                            img2_full = imgs_full[j, i*6+3:i*6+6].permute(1, 2, 0)
+                            img2_full = imgs_full[j, i * 6 + 3 : i * 6 + 6].permute(
+                                1, 2, 0
+                            )
                             img2_full = img2_full.cpu().numpy().astype(np.uint8)
                             img2_full = cv2.cvtColor(img2_full, cv2.COLOR_BGR2RGB)
 
-                            img1_full_warp = img1s_full_warp[j, i*3:i*3+3].permute(1, 2, 0)
-                            img1_full_warp = img1_full_warp.cpu().numpy().astype(np.uint8)
-                            img1_full_warp = cv2.cvtColor(img1_full_warp, cv2.COLOR_BGR2RGB)
+                            img1_full_warp = img1s_full_warp[
+                                j, i * 3 : i * 3 + 3
+                            ].permute(1, 2, 0)
+                            img1_full_warp = (
+                                img1_full_warp.cpu().numpy().astype(np.uint8)
+                            )
+                            img1_full_warp = cv2.cvtColor(
+                                img1_full_warp, cv2.COLOR_BGR2RGB
+                            )
 
                             ind = f'{k*bs+j+1}_b{k}_{j}'
                             prefix = f'{ind}_{fnames[j]}_{camera}_{prt_err}'
                             if params.save_iteration == bs and bs == 1:
                                 prefix = f"loss_{losses['total'].item():.4f}__" + prefix
                             # print(prefix)
-                            
+
                             save_file = [img2_full, img1_full_warp]
                             save_name = f'{prefix}_pred'
                             eval_save_result(save_file, save_name, manager, k, j, i, 0)
-                            
+
                             # origin
-                            img1_full = imgs_full[j, i*6:i*6+3].permute(1, 2, 0)
+                            img1_full = imgs_full[j, i * 6 : i * 6 + 3].permute(1, 2, 0)
                             img1_full = img1_full.cpu().numpy().astype(np.uint8)
                             img1_full = cv2.cvtColor(img1_full, cv2.COLOR_BGR2RGB)
                             save_file = [img2_full, img1_full]
                             save_name = f'{prefix}_ori'
                             eval_save_result(save_file, save_name, manager, k, j, i, 1)
                             # eval_save_result(save_file, save_name, manager, k, j, i, 0)
-    
+
                             kpr_list.append(f'{prt_err[8:]} {prefix}')
-                            
+
                             if 1:
-                                img1_full = imgs_full[j, i*6:i*6+3].permute(1, 2, 0)
+                                img1_full = imgs_full[j, i * 6 : i * 6 + 3].permute(
+                                    1, 2, 0
+                                )
                                 img1_full = img1_full.cpu().numpy().astype(np.uint8)
                                 img1_full = cv2.cvtColor(img1_full, cv2.COLOR_BGR2RGB)
                                 # ip()
-                                img2_full_warp = img2s_full_warp[j, i*3:i*3+3].permute(1, 2, 0)
-                                img2_full_warp = img2_full_warp.cpu().numpy().astype(np.uint8)
-                                img2_full_warp = cv2.cvtColor(img2_full_warp, cv2.COLOR_BGR2RGB)
-                                
+                                img2_full_warp = img2s_full_warp[
+                                    j, i * 3 : i * 3 + 3
+                                ].permute(1, 2, 0)
+                                img2_full_warp = (
+                                    img2_full_warp.cpu().numpy().astype(np.uint8)
+                                )
+                                img2_full_warp = cv2.cvtColor(
+                                    img2_full_warp, cv2.COLOR_BGR2RGB
+                                )
+
                                 save_file = [img1_full, img2_full_warp]
                                 save_name = f'{prefix}_pred_versus'
-                                eval_save_result(save_file, save_name, manager, k, j, i, 1)
-                                
+                                eval_save_result(
+                                    save_file, save_name, manager, k, j, i, 1
+                                )
+
                 # prt_str = f"{k}:{np.mean(err_avg):.4f} "
                 # kpr_list.append(prt_str)
                 # t.set_description(prt_str)
                 t.update()
+                # if k > 10:
                 # break
+                
         loss_total_avg = round(np.mean(np.array(loss_total_list)), 4)
         loss_edge_avg = round(np.mean(np.array(loss_edge_list)), 4)
         loss_photo_avg = round(np.mean(np.array(loss_photo_list)), 4)
@@ -157,20 +178,20 @@ def evaluate(model, manager):
         os.makedirs(kpr_dir, exist_ok=True)
         if 'current_epoch' not in vars(params):
             params.current_epoch = -1
-        kpr_name =  f'epoch={params.current_epoch:02d}_k_points_err_record.txt'
+        kpr_name = f'epoch={params.current_epoch:02d}_k_points_err_record.txt'
         kpr_path = os.path.join(kpr_dir, kpr_name)
         if os.path.exists(kpr_path):
             os.remove(kpr_path)
         kpr = open(kpr_path, 'a+')
         kpr.write(('\n').join(kpr_list))
         kpr.close()
-        
+
         Metric = {
             "total_loss": loss_total_avg,
             "photo_loss": loss_photo_avg,
             "edge_loss": loss_edge_avg,
         }
-        
+
         manager.update_metric_status(
             metrics=Metric, split=manager.params.eval_type, batch_size=1
         )
@@ -182,7 +203,6 @@ def evaluate(model, manager):
                 prt_loss,
             )
         )
- 
 
         # For each epoch, print the metric
         manager.print_metrics(
@@ -194,7 +214,7 @@ def evaluate(model, manager):
         model.train()
 
 
-def eval_save_result(save_file, save_name, manager, k, j, i,  m):
+def eval_save_result(save_file, save_name, manager, k, j, i, m):
 
     type_name = 'gif' if type(save_file) == list else 'jpg'
     save_dir_gif = os.path.join(manager.params.model_dir, type_name)
@@ -203,7 +223,7 @@ def eval_save_result(save_file, save_name, manager, k, j, i,  m):
 
     # save_dir_gif_epoch = os.path.join(save_dir_gif, str(manager.epoch_val))
     save_dir_gif_epoch = os.path.join(save_dir_gif)
-    if k == 0 and j==0 and i==0 and m==0:
+    if k == 0 and j == 0 and i == 0 and m == 0:
         if os.path.exists(save_dir_gif_epoch):
             shutil.rmtree(save_dir_gif_epoch)
         os.makedirs(save_dir_gif_epoch, exist_ok=True)
