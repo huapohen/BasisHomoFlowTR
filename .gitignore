@@ -42,3 +42,5 @@ dataset/*.txt
 experiments/
 !experiments/params.json
 !experiments/gen_pix2pix_splitstn/
+
+git.sh
