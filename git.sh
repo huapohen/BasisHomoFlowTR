@@ -6,7 +6,7 @@ dst='BasisHomoFlowTR'
 # branch='lwb'
 # branch='fblr'
 branch='lwb_aigc'
-commit_detail=' AIGC: pix2pix-stn '
+commit_detail=' aigc initial '
 
 cd ${rtdir}/${src}
 rm -f ./experiments/${src}
@@ -26,15 +26,15 @@ mv ${dst}_bp/README.md ${dst}/README.md
 mv ${dst}_bp/LICENSE ${dst}/LICENSE
 rm -rf ${dst}_bp
 
-for n in ${dst}
-# for n in ${src} ${dst}
+# for n in ${dst}
+for n in ${src} ${dst}
 do
     cd ${rtdir}/${n}
     git add .
     git status
     git commit -m "${commit_detail}"
     # git push
-    git push origin -u ${branch}
+    # git push origin -u ${branch}
     git push
 done
 
@@ -45,5 +45,5 @@ done
 cd ${rtdir}/${dst}
 git branch
 cd ${rtdir}/${src}
-# ln -s ${expdir}/${src} ./experiments/${src}
+ln -s ${expdir}/${src} ./experiments/${src}
 git branch

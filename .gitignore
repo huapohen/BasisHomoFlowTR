@@ -38,3 +38,6 @@ dataset/*.jpg
 dataset/*.txt
 .vscode/
 *.pth
+
+experiments/
+!experiments/params.json
