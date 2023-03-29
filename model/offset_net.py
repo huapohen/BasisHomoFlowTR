@@ -133,9 +133,14 @@ def warp_image_fblr(input, output):
 
 
 def apply_warped_mask(input, output):
-    input['img_f']
-
-    return
+    hw_clamp = {'f': [0, 244, 0, 616], 'b': [880-244, 880, 0, 616], 
+          'l': [0, 880, 0, 221], 'r': [0, 880, 616-221, 616]}
+    for k in ['f', 'b', 'l', 'r']:
+        img_m = output[f'mask_{k}w'] * input[f'img_{k}']
+        h1, h2, w1, w2 = hw_clamp[k]
+        output[f'img_{k}m'] = img_m[:, h1:h2, w1:w2]
+        output[f'img_{k}w'] = output[f'img_{k}w'][:, h1:h2, w1:w2]
+    return output
 
 
 def get_fusion_mask():
@@ -158,7 +163,10 @@ def get_fusion_mask():
 
 
 def merge_bevs_to_avm(output):
-
+    bevs = []
+    for k in ['f', 'b', 'l', 'r']:
+        bevs.append(output[f'fusion_mask_{k}'] * output[f'img_{k}w'])
+    output['avm_pred'] = bevs[0] + bevs[1] + bevs[2] + bevs[3]
     return output
 
 
@@ -740,5 +748,7 @@ if __name__ == '__main__':
         output = net(input)
         output = compute_homo(input, output)
         output = warp_image_fblr(input, output)
+        output = apply_warped_mask(input, output)
+        output = merge_bevs_to_avm(output)
 
     print(output.keys())
