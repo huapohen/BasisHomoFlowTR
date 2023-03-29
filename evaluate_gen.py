@@ -20,6 +20,8 @@ from easydict import EasyDict
 from tqdm import tqdm
 from dataset.avm_dataset import AVMDataset
 
+torch.backends.cuda.matmul.allow_tf32 = False
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
     '--params_path',

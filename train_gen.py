@@ -18,6 +18,8 @@ from common.manager import Manager
 from evaluate_gen import evaluate
 from loss.losses import compute_losses
 
+torch.backends.cuda.matmul.allow_tf32 = False
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
     '--model_dir',

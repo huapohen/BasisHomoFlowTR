@@ -1,12 +1,11 @@
-from __future__ import absolute_import, division, print_function
-import numpy as np
-import logging
+import os
+import cv2
 import torch
+import logging
+import warnings
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-import cv2
-import warnings
-from torch.nn.modules.utils import _pair, _quadruple
 
 
 warnings.filterwarnings("ignore")
@@ -32,6 +31,8 @@ class Net(nn.Module):
         self.layer2 = self._make_layer(self.block, 128, self.layers[1], stride=2)
         self.layer3 = self._make_layer(self.block, 256, self.layers[2], stride=2)
         self.layer4 = self._make_layer(self.block, 512, self.layers[3], stride=2)
+
+        self.fusion_mask = get_fusion_mask()
 
         self.conv_last = nn.Conv2d(
             512, 8 * 4, kernel_size=1, stride=1, padding=0, groups=8, bias=False
@@ -101,17 +102,18 @@ class Net(nn.Module):
         output['offset_l'] = offsets[:, 16:24].reshape(-1, 4, 2)
         output['offset_r'] = offsets[:, 24:32].reshape(-1, 4, 2)
 
-        img_f = input['img_f']
-        if self.points_f.device != img_f.device:
-            self.points_f = self.points_f.to(img_f)
-            self.points_b = self.points_b.to(img_f)
-            self.points_l = self.points_l.to(img_f)
-            self.points_r = self.points_r.to(img_f)
+        output['points_f_pred'] = input['points_f'] + output['offset_f']
+        output['points_b_pred'] = input['points_b'] + output['offset_b']
+        output['points_l_pred'] = input['points_l'] + output['offset_l']
+        output['points_r_pred'] = input['points_r'] + output['offset_r']
 
-        output['points_f_pred'] = self.points_f + output['offset_f']
-        output['points_b_pred'] = self.points_b + output['offset_b']
-        output['points_l_pred'] = self.points_l + output['offset_l']
-        output['points_r_pred'] = self.points_r + output['offset_r']
+        img_f = input['img_f']
+        bs = img_f.shape[0]
+        for k, v in self.fusion_mask.items():
+            v = v.repeat(bs, 1, 1, 1)
+            if v.device != img_f.device:
+                v = v.to(img_f)
+            output['fusion_mask_' + k[0]] = v
 
         return output
 
@@ -138,6 +140,35 @@ def warp_image_fblr(input, output):
     output['mask_bw'] = warp_image_from_H(output['homo_b'], ones, *bhw)
     output['mask_lw'] = warp_image_from_H(output['homo_l'], ones, *bhw)
     output['mask_rw'] = warp_image_from_H(output['homo_r'], ones, *bhw)
+
+    return output
+
+
+def apply_warped_mask():
+
+    return
+
+
+def get_fusion_mask():
+    mask_dir = '/home/data/lwb/code/baseshomo/tools/b16param'
+    cameras = ['front', 'back', 'left', 'right']
+    fusion_mask = {}
+    for cam in cameras:
+        fname = 'mask' + cam[0].upper() + cam[1:] + '.jpg'
+        gray = cv2.imread(os.path.join(mask_dir, fname), 0)
+        h, w = gray.shape
+        dh = 880 - h
+        dw = 616 - w
+        if cam in ['front', 'back']:
+            gray = np.concatenate([gray, np.zeros([dh, w])], axis=0)
+        else:
+            gray = np.concatenate([gray, np.zeros([h, dw])], axis=1)
+        gray.astype(np.float32)[np.newaxis, np.newaxis, :, :] / 255.0
+        fusion_mask[cam] = torch.from_numpy(gray)
+    return fusion_mask
+
+
+def merge_bevs_to_avm(output):
 
     return output
 
@@ -706,22 +737,21 @@ if __name__ == '__main__':
     input['img_b'] = np.ones((h, w, c), dtype=np.uint8)
     input['img_l'] = np.ones((h, w, c), dtype=np.uint8)
     input['img_r'] = np.ones((h, w, c), dtype=np.uint8)
+    for k, img in input.items():
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
+        input[k] = torch.from_numpy(img[np.newaxis].astype(np.float32)).cuda()
 
     # input resolution: 616, 880
     fl_pts, fr_pts = [(70, 80), (160, 180)], [(546, 80), (456, 180)]
     bl_pts, br_pts = [(70, 800), (160, 700)], [(456, 700), (546, 800)]
-    points_f = np.array([*fl_pts, *fr_pts], dtype=np.float32)
-    points_b = np.array([*bl_pts, *br_pts], dtype=np.float32)
-    points_l = np.array([*fl_pts, *bl_pts], dtype=np.float32)
-    points_r = np.array([*fr_pts, *br_pts], dtype=np.float32)
-    input['points_f'] = torch.from_numpy(points_f.reshape(1, 4, 2))
-    input['points_b'] = torch.from_numpy(points_b.reshape(1, 4, 2))
-    input['points_l'] = torch.from_numpy(points_l.reshape(1, 4, 2))
-    input['points_r'] = torch.from_numpy(points_r.reshape(1, 4, 2))
-
-    for k, img in input.items():
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
-        input[k] = torch.from_numpy(img[np.newaxis].astype(np.float32)).cuda()
+    pts_f = np.array([*fl_pts, *fr_pts], dtype=np.float32).reshape(1, 4, 2)
+    pts_b = np.array([*bl_pts, *br_pts], dtype=np.float32).reshape(1, 4, 2)
+    pts_l = np.array([*fl_pts, *bl_pts], dtype=np.float32).reshape(1, 4, 2)
+    pts_r = np.array([*fr_pts, *br_pts], dtype=np.float32).reshape(1, 4, 2)
+    input['points_f'] = torch.from_numpy(pts_f).cuda()
+    input['points_b'] = torch.from_numpy(pts_b).cuda()
+    input['points_l'] = torch.from_numpy(pts_l).cuda()
+    input['points_r'] = torch.from_numpy(pts_r).cuda()
 
     with torch.no_grad():
         output = net(input)

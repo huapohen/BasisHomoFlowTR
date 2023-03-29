@@ -4,6 +4,7 @@ from .swin_multi import SwinTransformer
 from .pix2pixSTN import Pix2PixSTN
 
 def fetch_net(params):
+    torch.backends.cuda.matmul.allow_tf32 = False
 
     if params.net_type == "basic":
         net = Net(params.crop_size, params.use_LRR)

@@ -10,6 +10,7 @@ from torch.nn.modules.utils import _pair, _quadruple
 
 
 warnings.filterwarnings("ignore")
+torch.backends.cuda.matmul.allow_tf32 = False
 
 
 class Net(nn.Module):
