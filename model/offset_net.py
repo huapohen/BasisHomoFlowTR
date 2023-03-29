@@ -78,73 +78,62 @@ class Net(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
         x = self.conv_last(x)  # bs,8*4,h,w
-        y = self.pool(x).squeeze(3)  # bs,8*4,1,1
+        y = self.pool(x).squeeze(3)  # bs,8*4,1
 
         return y
 
     def forward(self, input):
-        fea_f = self.share_feature(input['img_f'])
-        fea_b = self.share_feature(input['img_b'])
-        fea_l = self.share_feature(input['img_l'])
-        fea_r = self.share_feature(input['img_r'])
-
-        x = torch.cat([fea_f, fea_b, fea_l, fea_r], dim=1)
+        fea_list = []
+        for k in ['f', 'b', 'l', 'r']:
+            fea_list.append(self.share_feature(input[f'img_{k}']))
+        x = torch.cat(fea_list, dim=1)
 
         if self.params.is_test_pipeline:
-            offsets = x.new_zeros(x.shape[0], 32)
+            offsets = x.new_zeros(x.shape[0], 8 * 4, 1)
         else:
             offsets = self.nets_forward(x)
 
         output = {}
 
-        output['offset_f'] = offsets[:, :8].reshape(-1, 4, 2)
-        output['offset_b'] = offsets[:, 8:16].reshape(-1, 4, 2)
-        output['offset_l'] = offsets[:, 16:24].reshape(-1, 4, 2)
-        output['offset_r'] = offsets[:, 24:32].reshape(-1, 4, 2)
-
-        output['points_f_pred'] = input['points_f'] + output['offset_f']
-        output['points_b_pred'] = input['points_b'] + output['offset_b']
-        output['points_l_pred'] = input['points_l'] + output['offset_l']
-        output['points_r_pred'] = input['points_r'] + output['offset_r']
+        for i, k in enumerate(['f', 'b', 'l', 'r']):
+            j = 8 * i
+            output[f'offset_{k}'] = offsets[:, j:j+8].reshape(-1, 4, 2)
+            output[f'points_{k}_pred'] = input[f'points_{k}'] + output[f'offset_{k}']
 
         img_f = input['img_f']
         bs = img_f.shape[0]
         for k, v in self.fusion_mask.items():
-            v = v.repeat(bs, 1, 1, 1)
+            if v.shape[0] != bs:
+                v = v.repeat(bs, 1, 1, 1)
             if v.device != img_f.device:
                 v = v.to(img_f)
+            self.fusion_mask[k] = v
             output['fusion_mask_' + k[0]] = v
 
         return output
 
 
 def compute_homo(input, output):
-    output['homo_f'] = dlt_homo(output['points_f_pred'], input['points_f'])
-    output['homo_b'] = dlt_homo(output['points_b_pred'], input['points_b'])
-    output['homo_l'] = dlt_homo(output['points_l_pred'], input['points_l'])
-    output['homo_r'] = dlt_homo(output['points_r_pred'], input['points_r'])
-
+    for k in ['f', 'b', 'l', 'r']:
+        inps = [output[f'points_{k}_pred'], input[f'points_{k}']]
+        output[f'homo_{k}'] = dlt_homo(*inps)
     return output
 
 
 def warp_image_fblr(input, output):
     b, _, h, w = input['img_f'].shape
     bhw = (b, h, w)
-    output['img_fw'] = warp_image_from_H(output['homo_f'], input['img_f'], *bhw)
-    output['img_bw'] = warp_image_from_H(output['homo_b'], input['img_b'], *bhw)
-    output['img_lw'] = warp_image_from_H(output['homo_l'], input['img_l'], *bhw)
-    output['img_rw'] = warp_image_from_H(output['homo_r'], input['img_r'], *bhw)
-
     ones = torch.ones_like(input['img_f'])
-    output['mask_fw'] = warp_image_from_H(output['homo_f'], ones, *bhw)
-    output['mask_bw'] = warp_image_from_H(output['homo_b'], ones, *bhw)
-    output['mask_lw'] = warp_image_from_H(output['homo_l'], ones, *bhw)
-    output['mask_rw'] = warp_image_from_H(output['homo_r'], ones, *bhw)
-
+    for k in ['f', 'b', 'l', 'r']:
+        inp1 = [output[f'homo_{k}'], input[f'img_{k}'], *bhw]
+        inp2 = [output[f'homo_{k}'], ones, *bhw]
+        output[f'img_{k}w'] = warp_image_from_H(*inp1)
+        output[f'mask_{k}w'] = warp_image_from_H(*inp2)
     return output
 
 
-def apply_warped_mask():
+def apply_warped_mask(input, output):
+    input['img_f']
 
     return
 
@@ -721,22 +710,19 @@ if __name__ == '__main__':
     # ipdb.set_trace()
 
     params = EasyDict()
-    params.is_test_pipeline = True
+    # params.is_test_pipeline = True
+    params.is_test_pipeline = False
     net = Net(params)
     net.cuda()
 
     base_path = '/home/data/lwb/code/baseshomo/dataset/test'
 
     input = {}
-    # input['img_f'] = cv2.imread(f'{base_path}/20230302160555_162_front.jpg', 1)
-    # input['img_b'] = cv2.imread(f'{base_path}/20230302160555_162_back.jpg', 1)
-    # input['img_l'] = cv2.imread(f'{base_path}/20230302160555_162_left.jpg', 1)
-    # input['img_r'] = cv2.imread(f'{base_path}/20230302160555_162_right.jpg', 1)
+    # for k in ['front', 'back', 'left', 'right']:
+    #     input['img_f'] = cv2.imread(f'{base_path}/20230302160555_162_{k}.jpg', 1)
     h, w, c = 880, 616, 3
-    input['img_f'] = np.ones((h, w, c), dtype=np.uint8)
-    input['img_b'] = np.ones((h, w, c), dtype=np.uint8)
-    input['img_l'] = np.ones((h, w, c), dtype=np.uint8)
-    input['img_r'] = np.ones((h, w, c), dtype=np.uint8)
+    for k in ['f', 'b', 'l', 'r']:
+        input[f'img_{k}'] = np.ones((h, w, c), dtype=np.uint8)
     for k, img in input.items():
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
         input[k] = torch.from_numpy(img[np.newaxis].astype(np.float32)).cuda()
@@ -744,14 +730,11 @@ if __name__ == '__main__':
     # input resolution: 616, 880
     fl_pts, fr_pts = [(70, 80), (160, 180)], [(546, 80), (456, 180)]
     bl_pts, br_pts = [(70, 800), (160, 700)], [(456, 700), (546, 800)]
-    pts_f = np.array([*fl_pts, *fr_pts], dtype=np.float32).reshape(1, 4, 2)
-    pts_b = np.array([*bl_pts, *br_pts], dtype=np.float32).reshape(1, 4, 2)
-    pts_l = np.array([*fl_pts, *bl_pts], dtype=np.float32).reshape(1, 4, 2)
-    pts_r = np.array([*fr_pts, *br_pts], dtype=np.float32).reshape(1, 4, 2)
-    input['points_f'] = torch.from_numpy(pts_f).cuda()
-    input['points_b'] = torch.from_numpy(pts_b).cuda()
-    input['points_l'] = torch.from_numpy(pts_l).cuda()
-    input['points_r'] = torch.from_numpy(pts_r).cuda()
+    pts = {'f': [*fl_pts, *fr_pts], 'b': [*bl_pts, *br_pts], 
+           'l': [*fl_pts, *bl_pts], 'r': [*fr_pts, *br_pts]}
+    for k in ['f', 'b', 'l', 'r']:
+        pt = np.array(pts[k], dtype=np.float32).reshape(1, 4, 2)
+        input[f'points_{k}'] = torch.from_numpy(pt).cuda()
 
     with torch.no_grad():
         output = net(input)
