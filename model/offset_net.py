@@ -787,7 +787,7 @@ if __name__ == '__main__':
     params = EasyDict()
     # params.is_test_pipeline = True
     params.is_test_pipeline = False
-    net = Net(params)
+    net = OffsetNet(params)
     net.cuda()
 
     base_path = '/home/data/lwb/code/baseshomo/dataset/test'
