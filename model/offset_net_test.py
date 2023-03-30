@@ -94,8 +94,7 @@ class OffsetNet(nn.Module):
         x = torch.cat(fea_list, dim=1)
 
         if self.params.is_test_pipeline:
-            offsets = x.new_ones(x.shape[0], 8 * 4, 1) * 30
-            # offsets = x.new_zeros(x.shape[0], 8 * 4, 1)
+            offsets = x.new_zeros(x.shape[0], 8 * 4, 1)
         else:
             offsets = self.nets_forward(x)
 
@@ -106,7 +105,6 @@ class OffsetNet(nn.Module):
             output[f'offset_{k}'] = offsets[:, j : j + 8].reshape(-1, 4, 2)
             output[f'points_{k}_pred'] = input[f'points_{k}'] + output[f'offset_{k}']
 
-        temp = {}
         img_f = input['img_f']
         bs = img_f.shape[0]
         for i, masks in enumerate([self.fusion_mask, self.ones_mask]):
@@ -117,15 +115,73 @@ class OffsetNet(nn.Module):
                     v = v.to(img_f)
                 self.fusion_mask[k] = v
                 prefix = 'fusion_mask_' if i == 0 else 'ones_mask_'
-                temp[prefix + k] = v
+                output[prefix + k] = v
 
-        return output, temp
+        return output
 
 
 def compute_homo(input, output):
     for k in ['f', 'b', 'l', 'r']:
         inps = [output[f'points_{k}_pred'], input[f'points_{k}']]
         output[f'homo_{k}'] = dlt_homo(*inps)
+    return output
+
+
+def warp_image_fblr(input, output):
+    b, _, h, w = input['img_f'].shape
+    bhw = (b, h, w)
+    for k in ['f', 'b', 'l', 'r']:
+        # inp1 = [output[f'homo_{k}'], input[f'img_{k}'], *bhw]
+        inp1 = [output[f'homo_{k}'], input[f'img_{k}'] * 255, *bhw]
+        inp2 = [output[f'homo_{k}'], output[f'ones_mask_{k}'] * 255, *bhw]
+        inp3 = [output[f'homo_{k}'], output[f'ones_mask_{k}'], *bhw]
+        img_w = warp_image_from_H(*inp1)
+        mask_w = warp_image_from_H(*inp2)
+        mask_w_noise = warp_image_from_H(*inp3)
+        if 0:
+            i0 = to_cv2_format(mask_w_noise) * 255
+            i1 = to_cv2_format(img_w)  # * 255
+            i2 = to_cv2_format(mask_w)  # * 255
+            i3 = i2 * 1
+            i4 = i2 * 1
+            i3[i3 > 0] = 255
+            i4[i4 < 255] = 0
+            if (i2 < 0).sum() > 0:
+                print(k, (i2 < 0).sum())
+            cv2.imwrite(f'vis/ones_mask_{k}_noise.jpg', i0)
+            cv2.imwrite(f'vis/ones_mask_{k}.jpg', i1)
+            cv2.imwrite(f'vis/ones_mask_{k}w.jpg', i2)
+            cv2.imwrite(f'vis/ones_mask_{k}w3.jpg', i3)
+            cv2.imwrite(f'vis/ones_mask_{k}w4.jpg', i4)
+            i1 = cv2.cvtColor(i1, cv2.COLOR_BGR2RGB)
+            i2 = cv2.cvtColor(i2, cv2.COLOR_BGR2RGB)
+            imageio.mimsave(f'vis/ones_mask_{k}.gif', [i1, i2], duration=0.5)
+        output[f'ones_mask_{k}w_noise'] = mask_w_noise
+        mask_w[mask_w > 0] = 1
+        mask_w[mask_w < 0] = 0
+        output[f'ones_mask_{k}w'] = mask_w
+        output[f'img_{k}w'] = img_w / 255
+    return output
+
+
+def apply_warped_mask(input, output):
+    hw_clamp = {
+        'f': [244, 880, 0, 616],
+        'b': [0, 880 - 244, 0, 616],
+        'l': [0, 880, 221, 616],
+        'r': [0, 880, 0, 616 - 221],
+    }
+    for k in ['f', 'b', 'l', 'r']:
+        output[f'img_{k}m'] = output[f'ones_mask_{k}w'] * input[f'img_{k}']
+        output[f'img_{k}wm'] = output[f'img_{k}w'] * 1
+        h1, h2, w1, w2 = hw_clamp[k]
+        output[f'img_{k}m'][:, :, h1:h2, w1:w2] = 0
+        output[f'img_{k}wm'][:, :, h1:h2, w1:w2] = 0
+        if 0:
+            to_save(f'vis/{k}_4.jpg', output[f'img_{k}m'])
+            to_save(f'vis/{k}_5.jpg', output[f'img_{k}wm'])
+            to_save(f'vis/{k}_6.jpg', input[f'img_{k}'])
+            to_save(f'vis/{k}_7.jpg', output[f'img_{k}w'])
     return output
 
 
@@ -162,17 +218,15 @@ def get_fusion_mask():
             gray = np.concatenate([gray, np.zeros([h, dw])], axis=1)
         elif cam == 'right':
             gray = np.concatenate([np.zeros([h, dw]), gray], axis=1)
+        if 0:
+            cv2.imwrite(f'vis/{cam}.jpg', gray)
         fusion_mask[cam[0]] = torch.from_numpy(gray.astype(np.float32)) / 255
     return fusion_mask
 
 
 def to_cv2_format(imgs, i=0):
     # uint8 量化， 是否这里可视化噪点
-    img = imgs[i].detach().cpu()
-    img = (img / 2 + 0.5) * 255
-    img[img == 0.5 * 255] = 0
-    img = torch.clamp(img, 0, 255)
-    img = img.numpy().astype(np.uint8).transpose((1, 2, 0))
+    img = imgs[i].detach().cpu().numpy().astype(np.uint8).transpose((1, 2, 0))
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     return img
 
@@ -186,60 +240,40 @@ def to_save(svp, imgs, i=0):
     cv2.imwrite(svp, img)
 
 
-def second_stage(output, temp):
-    # warp_image_fblr
-    bs, _, h, w = input['img_f'].shape
-    bhw = (bs, h, w)
-    for k in ['f', 'b', 'l', 'r']:
-        inp1 = [output[f'homo_{k}'], input[f'img_{k}'] * 255, *bhw]
-        inp2 = [output[f'homo_{k}'], input[f'img_g{k}'] * 255, *bhw]
-        inp3 = [output[f'homo_{k}'], temp[f'ones_mask_{k}'] * 255, *bhw]
-        img_w = warp_image_from_H(*inp1)
-        img_gw = warp_image_from_H(*inp2)
-        mask_w = warp_image_from_H(*inp3)
-        mask_w[mask_w > 0] = 1
-        mask_w[mask_w < 0] = 0
-        temp[f'img_{k}w'] = img_w / 255
-        temp[f'img_g{k}w'] = img_gw / 255
-        temp[f'ones_mask_{k}w'] = mask_w
-    # apply_warped_mask
-    hw_clamp = {
-        'f': [244, 880, 0, 616],
-        'b': [0, 880 - 244, 0, 616],
-        'l': [0, 880, 221, 616],
-        'r': [0, 880, 0, 616 - 221],
-    }
-    for k in ['f', 'b', 'l', 'r']:
-        temp[f'img_{k}m'] = temp[f'ones_mask_{k}w'] * input[f'img_{k}']
-        temp[f'img_g{k}m'] = temp[f'ones_mask_{k}w'] * input[f'img_g{k}']
-        temp[f'img_{k}wm'] = temp[f'img_{k}w'] * 1
-        h1, h2, w1, w2 = hw_clamp[k]
-        temp[f'img_{k}m'][:, :, h1:h2, w1:w2] = 0
-        temp[f'img_g{k}m'][:, :, h1:h2, w1:w2] = 0
-        temp[f'img_{k}wm'][:, :, h1:h2, w1:w2] = 0
-    # merge_bevs_to_avm
+def merge_bevs_to_avm(output):
     bev1, bev2, bev3, bev4 = [], [], [], []
-    for i, k in enumerate(['f', 'b', 'l', 'r']):
-        bev1.append(temp[f'fusion_mask_{k}'] * temp[f'img_{k}wm'])
-        bev2.append(temp[f'fusion_mask_{k}'] * temp[f'img_{k}m'])
-        bev3.append(temp[f'fusion_mask_{k}'] * temp[f'img_g{k}m'])
-        bev4.append(temp[f'ones_mask_{k}w'])
-    eles = ['img_a_pred', 'img_a_m', 'img_ga_m', 'ones_mask_w_avm']
-    bevs = [bev1, bev2, bev3, bev4]
-    for i, k in enumerate(eles):
-        bi = bevs[i]
-        avm = bi[0] + bi[1] + bi[2] + bi[3]
-        output[k] = avm
-    # denoise
-    output[eles[-1]][output[eles[-1]] != 0] = 255
+    for k in ['f', 'b', 'l', 'r']:
+        bev1.append(output[f'fusion_mask_{k}'] * output[f'img_{k}wm'])
+        bev2.append(output[f'fusion_mask_{k}'] * output[f'img_{k}m'])
+        bev3.append(output[f'ones_mask_{k}w'])
+        bev4.append(output[f'ones_mask_{k}w_noise'])
+        if 0:
+            to_save(f'vis/{k}_1.jpg', output[f'fusion_mask_{k}'] * 255)
+            to_save(f'vis/{k}_2.jpg', output[f'img_{k}wm'])
+            to_save(f'vis/{k}_3.jpg', bev1[-1])
+    output['img_a_pred'] = bev1[0] + bev1[1] + bev1[2] + bev1[3]
+    output['img_a_m'] = bev2[0] + bev2[1] + bev2[2] + bev2[3]
+    mask_w = bev3[0] + bev3[1] + bev3[2] + bev3[3]
+    mask_w_noise = bev4[0] + bev4[1] + bev4[2] + bev4[3]
+    mask_w[mask_w != 0] = 255
+    mask_w_noise1 = mask_w_noise * 1
+    mask_w_noise2 = mask_w_noise * 1
+    mask_w_noise1[mask_w_noise1 < 1] = 0
+    mask_w_noise2[mask_w_noise2 > 0] = 255
     ones_mask_w_avm_sum_ratio = []
     ori_sum = 880 * 616
-    for i in range(bs):
-        pred_car_sum = (output['ones_mask_w_avm'][i][0] == 0).sum()
+    for i in range(mask_w.shape[0]):
+        pred_car_sum = (mask_w[i][0] == 0).sum()
         sum_ratio = (ori_sum - pred_car_sum) / ori_sum
         ones_mask_w_avm_sum_ratio.append(sum_ratio.unsqueeze(0))
     output['ones_mask_w_avm_sum_ratio'] = torch.cat(ones_mask_w_avm_sum_ratio, dim=0)
-
+    output['ones_mask_w_avm'] = mask_w
+    output['ones_mask_w_avm_noise'] = mask_w_noise * 255
+    output['ones_mask_w_avm_noise1'] = mask_w_noise1 * 255
+    output['ones_mask_w_avm_noise2'] = mask_w_noise2
+    if 0:
+        ori_car_sum = (880 - 244 * 2) * (616 - 221 * 2)
+        print(ori_car_sum, output['ones_mask_w_avm_sum_ratio'][0].item())
     return output
 
 
@@ -791,27 +825,20 @@ if __name__ == '__main__':
     os.makedirs('vis', exist_ok=True)
 
     params = EasyDict()
-    params.is_test_pipeline = True
-    # params.is_test_pipeline = False
+    # params.is_test_pipeline = True
+    params.is_test_pipeline = False
     net = OffsetNet(params)
     net.cuda()
 
     base_path = '/home/data/lwb/code/baseshomo/dataset/test'
 
     input = {}
-    for i, vid in enumerate(['20230302160555', '20230227114457']):
-        for k in ['front', 'back', 'left', 'right']:
-            img = cv2.imread(f'{base_path}/{vid}_162_{k}.jpg')
-            # img = np.ones((880, 616, 3), dtype=np.uint8) * 255
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
-            img = torch.from_numpy(img[np.newaxis].astype(np.float32))
-            img = (img / 255 - 0.5) * 2
-            img[img == -0.5] = 0  # croped_car
-            img = img.cuda()
-            if i == 0:
-                input[f'img_{k[0]}'] = img
-            else:
-                input[f'img_g{k[0]}'] = img
+    for k in ['front', 'back', 'left', 'right', 'avm']:
+        img = cv2.imread(f'{base_path}/20230302160555_162_{k}.jpg')
+        # img = np.ones((880, 616, 3), dtype=np.uint8) * 255
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
+        img = torch.from_numpy(img[np.newaxis].astype(np.float32)).cuda()
+        input[f'img_{k[0]}'] = img
 
     # input resolution: 616, 880
     fl_pts, fr_pts = [(70, 80), (160, 180)], [(546, 80), (456, 180)]
@@ -827,19 +854,23 @@ if __name__ == '__main__':
         input[f'points_{k}'] = torch.from_numpy(pt).cuda()
 
     with torch.no_grad():
-        output, temp = net(input)
+        output = net(input)
         output = compute_homo(input, output)
-        output = second_stage(output, temp)
-        del temp
+        output = warp_image_fblr(input, output)
+        output = apply_warped_mask(input, output)
+        output = merge_bevs_to_avm(output)
 
-    imgs = [output['img_ga_m'], output['img_a_m'], output['img_a_pred']]
+    imgs = [input['img_a'], output['img_a_m'], output['img_a_pred']]
     imgs = [to_cv2_format(i) for i in imgs]
-    cv2.imwrite('vis/avm_gm.jpg', imgs[0])
-    cv2.imwrite('vis/avm_m.jpg', imgs[1])
-    cv2.imwrite('vis/avm_m_pred.jpg', imgs[2])
+    cv2.imwrite('vis/avm_pred.jpg', imgs[2])
+    cv2.imwrite('vis/avm_gt.jpg', imgs[0])
+    cv2.imwrite('vis/avm_gtm.jpg', imgs[1])
     to_save(f'vis/ones_mask_w_avm.jpg', output['ones_mask_w_avm'])
+    to_save(f'vis/ones_mask_w_avm_noise.jpg', output['ones_mask_w_avm_noise'])
+    to_save(f'vis/ones_mask_w_avm_noise1.jpg', output['ones_mask_w_avm_noise1'])
+    to_save(f'vis/ones_mask_w_avm_noise2.jpg', output['ones_mask_w_avm_noise2'])
     imgs = [to_rgb(i) for i in imgs]
     imageio.mimsave('vis/avm_m_pd.gif', [imgs[1], imgs[2]], duration=0.5)
-    imageio.mimsave('vis/avm_gm_m.gif', [imgs[0], imgs[1]], duration=0.5)
-    imageio.mimsave('vis/avm_gm_pd.gif', [imgs[0], imgs[2]], duration=0.5)
+    imageio.mimsave('vis/avm_gt_m.gif', [imgs[0], imgs[1]], duration=0.5)
+    imageio.mimsave('vis/avm_gt_pd.gif', [imgs[0], imgs[2]], duration=0.5)
     print(output.keys())

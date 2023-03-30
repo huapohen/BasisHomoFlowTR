@@ -16,9 +16,8 @@ import model.offset_net as offset_net
 
 from common import utils
 from common.manager import Manager
-from evaluate_gen import evaluate
-from loss.offset_losses import compute_losses as compute_offset_losses
-from loss.losses import compute_losses
+from evaluate_offset import evaluate
+from loss.offset_losses import compute_losses
 
 torch.backends.cuda.matmul.allow_tf32 = False
 
@@ -65,7 +64,7 @@ def train(model, manager):
             output = offset_net.apply_warped_mask(data_batch, output)
             output = offset_net.merge_bevs_to_avm(output)
 
-            loss = compute_offset_losses(output, data_batch, manager.params)
+            loss = compute_losses(output, data_batch, manager.params)
 
             # update loss status and print current loss and average loss
             manager.update_loss_status(loss=loss, split="train")

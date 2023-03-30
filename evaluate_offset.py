@@ -13,7 +13,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import model.net as net
 from common import utils
-from loss.losses import compute_losses
+from loss.offset_losses import compute_losses
 from common.manager import Manager
 from parameters import get_config, dictToObj
 from easydict import EasyDict
@@ -41,6 +41,7 @@ parser.add_argument(
     help="name of the file in --model_dir containing weights to load",
 )
 
+
 def evaluate(model, manager):
     """Evaluate the model on `num_steps` batches.
 
@@ -66,7 +67,9 @@ def evaluate(model, manager):
                 loss = compute_losses(output_batch, data_batch, manager.params)
 
                 manager.update_metric_status(
-                    metrics=loss, split=manager.params.eval_type, batch_size=manager.params.eval_batch_size
+                    metrics=loss,
+                    split=manager.params.eval_type,
+                    batch_size=manager.params.eval_batch_size,
                 )
                 eval_save_result(output_batch, data_batch["gt"], manager)
             t.update()
@@ -89,10 +92,11 @@ def evaluate(model, manager):
         manager.update_epoch_val()
         model.train()
 
-def eval_save_result(outs, gts, manager, out_dir = "imgs"):
+
+def eval_save_result(outs, gts, manager, out_dir="imgs"):
 
     # save dir: model_dir
-    save_dir= os.path.join(manager.params.model_dir, out_dir)
+    save_dir = os.path.join(manager.params.model_dir, out_dir)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
@@ -101,18 +105,22 @@ def eval_save_result(outs, gts, manager, out_dir = "imgs"):
         out_img = out_img.transpose(1, 2, 0).astype(np.uint8)
         gt_img = (gts[idx].data.cpu().numpy() * 0.5 + 0.5) * 255
         gt_img = gt_img.transpose(1, 2, 0).astype(np.uint8)
-        save_img = np.concatenate([out_img, gt_img], axis = 1)
+        save_img = np.concatenate([out_img, gt_img], axis=1)
 
-        cv2.imwrite(os.path.join(save_dir, "epoch{}_b{}.jpg").format(manager.epoch_val, idx), save_img)
+        cv2.imwrite(
+            os.path.join(save_dir, "epoch{}_b{}.jpg").format(manager.epoch_val, idx),
+            save_img,
+        )
 
-def save_full_result(outs, inputs, b_idx, save_dir = "imgs"):
+
+def save_full_result(outs, inputs, b_idx, save_dir="imgs"):
 
     # save dir: model_dir
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
     for idx, out in enumerate(outs):
-        imgs = (inputs["inputs"][idx] * 0.5 + 0.5) * 255 / 3.
+        imgs = (inputs["inputs"][idx] * 0.5 + 0.5) * 255 / 3.0
         imgs = torch.clamp(imgs[:3] + imgs[3:6] + imgs[6:9] + imgs[9:], 0, 255)
         save_img = torch.cat([out, inputs["gt"][idx]], 2)
         save_img = (save_img * 0.5 + 0.5) * 255
@@ -120,6 +128,7 @@ def save_full_result(outs, inputs, b_idx, save_dir = "imgs"):
         save_img = save_img.transpose(1, 2, 0).astype(np.uint8)
 
         cv2.imwrite(os.path.join(save_dir, "b{}_{}.jpg").format(b_idx, idx), save_img)
+
 
 def load_checkpoint(model_file, model):
     state = torch.load(model_file, map_location=torch.device('cpu'))
@@ -129,7 +138,8 @@ def load_checkpoint(model_file, model):
         new_dict[key[7:]] = state_dict[key]
     model.load_state_dict(new_dict)
 
-def test_exp(test_lists, save_dir, max_num = 100):
+
+def test_exp(test_lists, save_dir, max_num=100):
     args = parser.parse_args()
     json_path = os.path.join(args.model_dir, 'params.json')
     assert os.path.isfile(json_path), "No json configuration file found at {}".format(
@@ -145,14 +155,14 @@ def test_exp(test_lists, save_dir, max_num = 100):
 
     # dataloader
     dataloaders = {}
-    test_ds = AVMDataset(test_lists, shuffle = False)
+    test_ds = AVMDataset(test_lists, shuffle=False)
     dl = DataLoader(
-            test_ds,
-            batch_size=params.eval_batch_size,
-            shuffle=False,
-            num_workers=params.num_workers,
-            pin_memory=params.cuda
-        )
+        test_ds,
+        batch_size=params.eval_batch_size,
+        shuffle=False,
+        num_workers=params.num_workers,
+        pin_memory=params.cuda,
+    )
     dataloaders["test"] = dl
 
     # net
@@ -177,9 +187,12 @@ def test_exp(test_lists, save_dir, max_num = 100):
                     break
             t.update()
 
+
 if __name__ == "__main__":
     # import ipdb
     # ipdb.set_trace()
-    test_files = ["/data/xingchen/dataset/AVM/b16_train/dataloader/valid/valid_aug_list.txt"]
+    test_files = [
+        "/data/xingchen/dataset/AVM/b16_train/dataloader/valid/valid_aug_list.txt"
+    ]
     save_dir = "/data/xingchen/results/AVMs/remove_stn_warp_l1vgg"
-    test_exp(test_files, save_dir, max_num = 500)
+    test_exp(test_files, save_dir, max_num=500)
