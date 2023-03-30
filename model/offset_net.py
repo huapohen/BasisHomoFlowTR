@@ -15,7 +15,7 @@ from easydict import EasyDict
 warnings.filterwarnings("ignore")
 
 
-class Net(nn.Module):
+class OffsetNet(nn.Module):
     def __init__(self, params=None):
         super().__init__()
         torch.backends.cuda.matmul.allow_tf32 = False
