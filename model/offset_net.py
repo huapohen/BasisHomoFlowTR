@@ -246,6 +246,7 @@ def merge_bevs_to_avm(output):
     output['img_a_pred'] = bev1[0] + bev1[1] + bev1[2] + bev1[3]
     output['img_a_m'] = bev2[0] + bev2[1] + bev2[2] + bev2[3]
     mask_w = bev3[0] + bev3[1] + bev3[2] + bev3[3]
+    output['ones_mask_w_avm_noise'] = mask_w * 1
     mask_w[mask_w != 0] = 255
     ones_mask_w_avm_sum = []
     for i in range(mask_w.shape[0]):
