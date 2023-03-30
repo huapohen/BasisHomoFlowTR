@@ -25,7 +25,7 @@ torch.backends.cuda.matmul.allow_tf32 = False
 parser = argparse.ArgumentParser()
 parser.add_argument(
     '--model_dir',
-    default='experiments/base_model',
+    default='experiments/offset',
     help="Directory containing params.json",
 )
 parser.add_argument(
@@ -59,7 +59,7 @@ def train(model, manager):
             data_batch = utils.tensor_gpu(data_batch)
 
             # compute model output and loss
-            output = model(data_batch["inputs"])
+            output = model(data_batch)
             output = offset_net.compute_homo(data_batch, output)
             output = offset_net.warp_image_fblr(data_batch, output)
             output = offset_net.apply_warped_mask(data_batch, output)
@@ -104,8 +104,8 @@ def train_and_evaluate(model, manager):
         # compute number of batches in one epoch (one full pass over the training set)
         train(model, manager)
 
-        # evaluate
-        evaluate(model, manager)
+        # # evaluate
+        # evaluate(model, manager)
 
         # Save latest model, or best model weights accroding to the params.major_metric
         manager.check_best_save_last_checkpoints(latest_freq_val=999, latest_freq=1)

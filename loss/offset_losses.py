@@ -73,7 +73,7 @@ def photo_loss_function(output, q, averge=True, ones_mask=False):
     diff = (torch.abs(diff) + 0.01).pow(q)
     if ones_mask:
         for i in range(diff.shape[0]):
-            diff[i] = diff[i] * output['ones_mask_w_avm_sum_ratio'][i]
+            diff[i] = diff[i] / output['ones_mask_w_avm_sum_ratio'][i]
     if averge:
         loss_mean = diff.mean()
     else:
