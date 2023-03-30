@@ -20,6 +20,8 @@ class OffsetNet(nn.Module):
         super().__init__()
         torch.backends.cuda.matmul.allow_tf32 = False
         self.params = params
+        if 'is_test_pipeline' not in vars(params):
+            params.is_test_pipeline = False
         self.inplanes = 64
         self.layers = [3, 4, 6, 3]
 

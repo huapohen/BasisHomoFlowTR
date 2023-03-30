@@ -49,10 +49,10 @@ class OffsetDataset(torch.utils.data.Dataset):
             img = cv2.imread(os.path.join(self.data_dir, perfix + f'_{k}.jpg'))
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
             img = (img / 255.0 - 0.5) * 2
-            img = torch.from_numpy(img[np.newaxis].astype(np.float32))
+            img = torch.from_numpy(img.astype(np.float32))
             if k != 'avm':
                 data_dict[f'img_{k[0]}'] = img
-                pt = np.array(pts[k[0]], dtype=np.float32).reshape(1, 4, 2)
+                pt = np.array(pts[k[0]], dtype=np.float32).reshape(4, 2)
                 data_dict[f'points_{k[0]}'] = torch.from_numpy(pt)
 
         return data_dict
