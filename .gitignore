@@ -44,3 +44,4 @@ experiments/
 !experiments/gen_pix2pix_splitstn/
 
 git.sh
+model/vis*
