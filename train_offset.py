@@ -58,11 +58,10 @@ def train(model, manager):
             data_batch = utils.tensor_gpu(data_batch)
 
             # compute model output and loss
-            output = model(data_batch)
+            output, temp = model(data_batch)
             output = offset_net.compute_homo(data_batch, output)
-            output = offset_net.warp_image_fblr(data_batch, output)
-            output = offset_net.apply_warped_mask(data_batch, output)
-            output = offset_net.merge_bevs_to_avm(output)
+            output = offset_net.second_stage(data_batch, output, temp)
+            del temp
 
             loss = compute_losses(output, data_batch, manager.params)
 

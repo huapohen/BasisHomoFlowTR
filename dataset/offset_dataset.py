@@ -45,14 +45,19 @@ class OffsetDataset(torch.utils.data.Dataset):
 
         data_dict = {}
 
-        for k in ['front', 'back', 'left', 'right']:
-            img = cv2.imread(os.path.join(self.data_dir, prefix + f'_{k}.jpg'))
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
-            img = (img / 255.0 - 0.5) * 2
-            img = torch.from_numpy(img.astype(np.float32))
-            data_dict[f'img_{k[0]}'] = img
-            pt = np.array(pts[k[0]], dtype=np.float32).reshape(4, 2)
-            data_dict[f'points_{k[0]}'] = torch.from_numpy(pt)
+        for i in range(2):
+            for k in ['front', 'back', 'left', 'right']:
+                pref = prefix[:-1] + '0' if i == 0 else prefix
+                img = cv2.imread(os.path.join(self.data_dir, pref + f'_{k}.jpg'))
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
+                img = (img / 255.0 - 0.5) * 2
+                img[img == -0.5] = 0
+                img = torch.from_numpy(img.astype(np.float32))
+                gt = 'g' if i == 0 else ''
+                data_dict[f'img_{gt}{k[0]}'] = img
+                if i == 0:
+                    pt = np.array(pts[k[0]], dtype=np.float32).reshape(4, 2)
+                    data_dict[f'points_{k[0]}'] = torch.from_numpy(pt)
 
         return data_dict
 

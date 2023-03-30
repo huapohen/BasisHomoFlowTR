@@ -186,7 +186,7 @@ def to_save(svp, imgs, i=0):
     cv2.imwrite(svp, img)
 
 
-def second_stage(output, temp):
+def second_stage(input, output, temp):
     # warp_image_fblr
     bs, _, h, w = input['img_f'].shape
     bhw = (bs, h, w)
@@ -806,12 +806,10 @@ if __name__ == '__main__':
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
             img = torch.from_numpy(img[np.newaxis].astype(np.float32))
             img = (img / 255 - 0.5) * 2
-            img[img == -0.5] = 0  # croped_car
+            img[img == -0.5] = 0  # cropped_car
             img = img.cuda()
-            if i == 0:
-                input[f'img_{k[0]}'] = img
-            else:
-                input[f'img_g{k[0]}'] = img
+            gt = 'g' if i == 0 else ''
+            input[f'img_{gt}{k[0]}'] = img
 
     # input resolution: 616, 880
     fl_pts, fr_pts = [(70, 80), (160, 180)], [(546, 80), (456, 180)]

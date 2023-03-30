@@ -69,7 +69,7 @@ def triplet_loss(a, p, n, margin=1.0, exp=1, reduce=False, size_average=False):
 
 
 def photo_loss_function(output, q, averge=True, ones_mask=False):
-    diff = output['img_a_pred'] - output['img_a_m']
+    diff = output['img_a_pred'] - output['img_ga_m']
     diff = (torch.abs(diff) + 0.01).pow(q)
     if ones_mask:
         for i in range(diff.shape[0]):
