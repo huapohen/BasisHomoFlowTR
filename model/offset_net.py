@@ -1,11 +1,13 @@
 import os
 import cv2
 import torch
+import imageio
 import logging
 import warnings
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+from ipdb import set_trace as ip
 
 
 warnings.filterwarnings("ignore")
@@ -104,7 +106,7 @@ class Net(nn.Module):
         bs = img_f.shape[0]
         for k, v in self.fusion_mask.items():
             if v.shape[0] != bs:
-                v = v.repeat(bs, 1, 1, 1)
+                v = v.repeat(bs, 3, 1, 1)
             if v.device != img_f.device:
                 v = v.to(img_f)
             self.fusion_mask[k] = v
@@ -133,13 +135,14 @@ def warp_image_fblr(input, output):
 
 
 def apply_warped_mask(input, output):
-    hw_clamp = {'f': [0, 244, 0, 616], 'b': [880-244, 880, 0, 616], 
-          'l': [0, 880, 0, 221], 'r': [0, 880, 616-221, 616]}
+    hw_clamp = {'f': [244, 880, 0, 616], 'b': [0, 880-244, 0, 616], 
+                'l': [0, 880, 221, 616], 'r': [0, 880, 0, 616-221]}
     for k in ['f', 'b', 'l', 'r']:
         img_m = output[f'mask_{k}w'] * input[f'img_{k}']
         h1, h2, w1, w2 = hw_clamp[k]
-        output[f'img_{k}m'] = img_m[:, h1:h2, w1:w2]
-        output[f'img_{k}w'] = output[f'img_{k}w'][:, h1:h2, w1:w2]
+        output[f'img_{k}m'] = img_m
+        output[f'img_{k}m'][:, h1:h2, w1:w2] = 0
+        output[f'img_{k}w'][:, h1:h2, w1:w2] = 0
     return output
 
 
@@ -157,7 +160,7 @@ def get_fusion_mask():
             gray = np.concatenate([gray, np.zeros([dh, w])], axis=0)
         else:
             gray = np.concatenate([gray, np.zeros([h, dw])], axis=1)
-        gray.astype(np.float32)[np.newaxis, np.newaxis, :, :] / 255.0
+        gray = gray.astype(np.float32) / 255.0
         fusion_mask[cam] = torch.from_numpy(gray)
     return fusion_mask
 
@@ -166,7 +169,7 @@ def merge_bevs_to_avm(output):
     bevs = []
     for k in ['f', 'b', 'l', 'r']:
         bevs.append(output[f'fusion_mask_{k}'] * output[f'img_{k}w'])
-    output['avm_pred'] = bevs[0] + bevs[1] + bevs[2] + bevs[3]
+    output['img_a_pred'] = bevs[0] + bevs[1] + bevs[2] + bevs[3]
     return output
 
 
@@ -726,11 +729,10 @@ if __name__ == '__main__':
     base_path = '/home/data/lwb/code/baseshomo/dataset/test'
 
     input = {}
-    # for k in ['front', 'back', 'left', 'right']:
-    #     input['img_f'] = cv2.imread(f'{base_path}/20230302160555_162_{k}.jpg', 1)
-    h, w, c = 880, 616, 3
-    for k in ['f', 'b', 'l', 'r']:
-        input[f'img_{k}'] = np.ones((h, w, c), dtype=np.uint8)
+    for k in ['front', 'back', 'left', 'right', 'avm']:
+        input[f'img_{k[0]}'] = cv2.imread(f'{base_path}/20230302160555_162_{k}.jpg')
+    # for k in ['f', 'b', 'l', 'r', 'a']:
+        # input[f'img_{k}'] = np.ones((880, 616, 3), dtype=np.uint8) * 255
     for k, img in input.items():
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
         input[k] = torch.from_numpy(img[np.newaxis].astype(np.float32)).cuda()
@@ -750,5 +752,9 @@ if __name__ == '__main__':
         output = warp_image_fblr(input, output)
         output = apply_warped_mask(input, output)
         output = merge_bevs_to_avm(output)
-
+        
+    imgs = [input['img_a'], output['img_a_pred']]
+    imgs = [i[0].detach().cpu().numpy().transpose((1, 2, 0)) for i in imgs]
+    imgs = [cv2.cvtColor(i.astype(np.uint8), cv2.COLOR_RGB2BGR) for i in imgs]
+    imageio.mimsave('./avm.gif', imgs, duration=0.5)
     print(output.keys())
