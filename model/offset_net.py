@@ -132,9 +132,12 @@ def warp_image_fblr(input, output):
         # inp1 = [output[f'homo_{k}'], input[f'img_{k}'], *bhw]
         inp1 = [output[f'homo_{k}'], input[f'img_{k}'] * 255, *bhw]
         inp2 = [output[f'homo_{k}'], output[f'ones_mask_{k}'] * 255, *bhw]
+        inp3 = [output[f'homo_{k}'], output[f'ones_mask_{k}'], *bhw]
         img_w = warp_image_from_H(*inp1)
         mask_w = warp_image_from_H(*inp2)
+        mask_w_noise = warp_image_from_H(*inp3)
         if 0:
+            i0 = to_cv2_format(mask_w_noise) * 255
             i1 = to_cv2_format(img_w)  # * 255
             i2 = to_cv2_format(mask_w)  # * 255
             i3 = i2 * 1
@@ -143,6 +146,7 @@ def warp_image_fblr(input, output):
             i4[i4 < 255] = 0
             if (i2 < 0).sum() > 0:
                 print(k, (i2 < 0).sum())
+            cv2.imwrite(f'vis/ones_mask_{k}_noise.jpg', i0)
             cv2.imwrite(f'vis/ones_mask_{k}.jpg', i1)
             cv2.imwrite(f'vis/ones_mask_{k}w.jpg', i2)
             cv2.imwrite(f'vis/ones_mask_{k}w3.jpg', i3)
@@ -150,6 +154,7 @@ def warp_image_fblr(input, output):
             i1 = cv2.cvtColor(i1, cv2.COLOR_BGR2RGB)
             i2 = cv2.cvtColor(i2, cv2.COLOR_BGR2RGB)
             imageio.mimsave(f'vis/ones_mask_{k}.gif', [i1, i2], duration=0.5)
+        output[f'ones_mask_{k}w_noise'] = mask_w_noise
         mask_w[mask_w > 0] = 1
         mask_w[mask_w < 0] = 0
         output[f'ones_mask_{k}w'] = mask_w
@@ -234,11 +239,12 @@ def to_save(svp, imgs, i=0):
 
 
 def merge_bevs_to_avm(output):
-    bev1, bev2, bev3 = [], [], []
+    bev1, bev2, bev3, bev4 = [], [], [], []
     for k in ['f', 'b', 'l', 'r']:
         bev1.append(output[f'fusion_mask_{k}'] * output[f'img_{k}wm'])
         bev2.append(output[f'fusion_mask_{k}'] * output[f'img_{k}m'])
         bev3.append(output[f'ones_mask_{k}w'])
+        bev4.append(output[f'ones_mask_{k}w_noise'])
         if 0:
             to_save(f'vis/{k}_1.jpg', output[f'fusion_mask_{k}'] * 255)
             to_save(f'vis/{k}_2.jpg', output[f'img_{k}wm'])
@@ -246,13 +252,20 @@ def merge_bevs_to_avm(output):
     output['img_a_pred'] = bev1[0] + bev1[1] + bev1[2] + bev1[3]
     output['img_a_m'] = bev2[0] + bev2[1] + bev2[2] + bev2[3]
     mask_w = bev3[0] + bev3[1] + bev3[2] + bev3[3]
-    output['ones_mask_w_avm_noise'] = mask_w * 1
+    mask_w_noise = bev4[0] + bev4[1] + bev4[2] + bev4[3]
     mask_w[mask_w != 0] = 255
+    mask_w_noise1 = mask_w_noise * 1
+    mask_w_noise2 = mask_w_noise * 1
+    mask_w_noise1[mask_w_noise1 < 1] = 0
+    mask_w_noise2[mask_w_noise2 > 0] = 255
     ones_mask_w_avm_sum = []
     for i in range(mask_w.shape[0]):
         ones_mask_w_avm_sum.append((mask_w[i][0] == 0).sum().unsqueeze(0))
     output['ones_mask_w_avm_sum'] = torch.cat(ones_mask_w_avm_sum, dim=0)
     output['ones_mask_w_avm'] = mask_w
+    output['ones_mask_w_avm_noise'] = mask_w_noise * 255
+    output['ones_mask_w_avm_noise1'] = mask_w_noise1 * 255
+    output['ones_mask_w_avm_noise2'] = mask_w_noise2
     if 0:
         ori_sum = (880 - 244 * 2) * (616 - 221 * 2)
         print(ori_sum, output['ones_mask_w_avm_sum'][0].item())
@@ -848,6 +861,9 @@ if __name__ == '__main__':
     cv2.imwrite('vis/avm_gt.jpg', imgs[0])
     cv2.imwrite('vis/avm_gtm.jpg', imgs[1])
     to_save(f'vis/ones_mask_w_avm.jpg', output['ones_mask_w_avm'])
+    to_save(f'vis/ones_mask_w_avm_noise.jpg', output['ones_mask_w_avm_noise'])
+    to_save(f'vis/ones_mask_w_avm_noise1.jpg', output['ones_mask_w_avm_noise1'])
+    to_save(f'vis/ones_mask_w_avm_noise2.jpg', output['ones_mask_w_avm_noise2'])
     imgs = [to_rgb(i) for i in imgs]
     imageio.mimsave('vis/avm_m_pd.gif', [imgs[1], imgs[2]], duration=0.5)
     imageio.mimsave('vis/avm_gt_m.gif', [imgs[0], imgs[1]], duration=0.5)
