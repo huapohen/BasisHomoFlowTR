@@ -258,17 +258,20 @@ def merge_bevs_to_avm(output):
     mask_w_noise2 = mask_w_noise * 1
     mask_w_noise1[mask_w_noise1 < 1] = 0
     mask_w_noise2[mask_w_noise2 > 0] = 255
-    ones_mask_w_avm_sum = []
+    ones_mask_w_avm_sum_ratio = []
+    ori_sum = 880 * 616
     for i in range(mask_w.shape[0]):
-        ones_mask_w_avm_sum.append((mask_w[i][0] == 0).sum().unsqueeze(0))
-    output['ones_mask_w_avm_sum'] = torch.cat(ones_mask_w_avm_sum, dim=0)
+        pred_car_sum = (mask_w[i][0] == 0).sum()
+        sum_ratio = (ori_sum - pred_car_sum) / ori_sum
+        ones_mask_w_avm_sum_ratio.append(sum_ratio.unsqueeze(0))
+    output['ones_mask_w_avm_sum_ratio'] = torch.cat(ones_mask_w_avm_sum_ratio, dim=0)
     output['ones_mask_w_avm'] = mask_w
     output['ones_mask_w_avm_noise'] = mask_w_noise * 255
     output['ones_mask_w_avm_noise1'] = mask_w_noise1 * 255
     output['ones_mask_w_avm_noise2'] = mask_w_noise2
     if 0:
-        ori_sum = (880 - 244 * 2) * (616 - 221 * 2)
-        print(ori_sum, output['ones_mask_w_avm_sum'][0].item())
+        ori_car_sum = (880 - 244 * 2) * (616 - 221 * 2)
+        print(ori_car_sum, output['ones_mask_w_avm_sum_ratio'][0].item())
     return output
 
 

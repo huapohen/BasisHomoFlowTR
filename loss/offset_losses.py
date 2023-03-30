@@ -7,18 +7,22 @@ from model import net
 
 
 class VGGLoss(nn.Module):
-    def __init__(self, gpu_ids = None):
-        super(VGGLoss, self).__init__()        
+    def __init__(self, gpu_ids=None):
+        super(VGGLoss, self).__init__()
         self.vgg = Vgg19().cuda().eval()
-        self.criterion = nn.L1Loss()
-        self.weights = [1.0/32, 1.0/16, 1.0/8, 1.0/4, 1.0]        
+        # self.criterion = nn.L1Loss()
+        self.weights = [1.0 / 32, 1.0 / 16, 1.0 / 8, 1.0 / 4, 1.0]
 
-    def forward(self, x, y):              
+    def forward(self, output):
+        y, x = output['img_a_pred'], output['img_a_m']
         x_vgg, y_vgg = self.vgg(x), self.vgg(y)
         loss = 0
         for i in range(len(x_vgg)):
-            loss += self.weights[i] * self.criterion(x_vgg[i], y_vgg[i].detach())        
+            # loss += self.weights[i] * self.criterion(x_vgg[i], y_vgg[i].detach())
+            ratio = output['ones_mask_w_avm_sum_ratio'][i]
+            loss += self.weights[i] * (ratio * F.l1_loss(y_vgg[i], x_vgg[i]))
         return loss
+
 
 class Vgg19(torch.nn.Module):
     def __init__(self, requires_grad=False):
@@ -45,12 +49,13 @@ class Vgg19(torch.nn.Module):
 
     def forward(self, X):
         h_relu1 = self.slice1(X)
-        h_relu2 = self.slice2(h_relu1)        
-        h_relu3 = self.slice3(h_relu2)        
-        h_relu4 = self.slice4(h_relu3)        
-        h_relu5 = self.slice5(h_relu4)                
+        h_relu2 = self.slice2(h_relu1)
+        h_relu3 = self.slice3(h_relu2)
+        h_relu4 = self.slice4(h_relu3)
+        h_relu5 = self.slice5(h_relu4)
         out = [h_relu1, h_relu2, h_relu3, h_relu4, h_relu5]
         return out
+
 
 vgg_loss_func = VGGLoss()
 
@@ -63,12 +68,16 @@ def triplet_loss(a, p, n, margin=1.0, exp=1, reduce=False, size_average=False):
     return triplet_loss(a, p, n)
 
 
-def photo_loss_function(diff, q, averge=True):
+def photo_loss_function(output, q, averge=True, ones_mask=False):
+    diff = output['img_a_pred'] - output['img_a_m']
     diff = (torch.abs(diff) + 0.01).pow(q)
+    if ones_mask:
+        for i in range(diff.shape[0]):
+            diff[i] = diff[i] * output['ones_mask_w_avm_sum_ratio'][i]
     if averge:
         loss_mean = diff.mean()
     else:
-        loss_mean = diff.sum()
+        loss_mean = diff
     return loss_mean
 
 
@@ -78,19 +87,20 @@ def compute_losses(output, train_batch, params):
     if params.loss_type == "basic":
         pass
     elif params.loss_type == "L2":
-        loss = F.mse_loss(output, train_batch["gt"])
+        loss = photo_loss_function(output, 2, ones_mask=True)
         losses["total"] = loss
     elif params.loss_type == "L1":
-        loss = F.l1_loss(output, train_batch["gt"])
+        loss = photo_loss_function(output, 1, ones_mask=True)
         losses["total"] = loss
     elif params.loss_type == "VGG":
-        losses["l1"] = F.l1_loss(output, train_batch["gt"])
-        losses["vgg"] = vgg_loss_func(output, train_batch["gt"])
+        losses["l1"] = photo_loss_function(output, 1, ones_mask=True)
+        losses["vgg"] = vgg_loss_func(output)
         losses["total"] = 0.1 * losses["l1"] + losses["vgg"]
     else:
         raise NotImplementedError
 
     return losses
+
 
 def compute_eval_results(data_batch, output_batch, manager):
 
@@ -113,9 +123,9 @@ def compute_eval_results(data_batch, output_batch, manager):
     return eval_results
 
 
-
 if __name__ == "__main__":
     import ipdb
+
     ipdb.set_trace()
     input = torch.randn(1, 3, 448, 304)
     gt = torch.randn(1, 3, 448, 304)
