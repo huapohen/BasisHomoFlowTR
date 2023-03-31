@@ -32,10 +32,10 @@ def inference(model, params):
             output = second_stage(inputs, output, temp)
             imgs = [output['img_ga_m'], output['img_a_m'], output['img_a_pred']]
             imgs = [to_cv2_format(i) for i in imgs]
-            draw_info = [cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2]
-            cv2.putText(imgs[1], 'inp', (290, 400), *draw_info)
-            cv2.putText(imgs[0], 'gt', (290, 450), *draw_info)
-            cv2.putText(imgs[2], 'pred', (290, 500), *draw_info)
+            draw_info = [cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2]
+            cv2.putText(imgs[1], 'inp', (280, 400), *draw_info)
+            cv2.putText(imgs[0], 'gt', (280, 450), *draw_info)
+            cv2.putText(imgs[2], 'pred', (280, 500), *draw_info)
             pad = np.full((880, 50, 3), 255, np.uint8)
             versus = [imgs[0], pad, imgs[1], pad, imgs[2]]
             compare = np.concatenate(versus, axis=1)
