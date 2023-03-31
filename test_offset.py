@@ -24,20 +24,34 @@ def inference(model, params):
     torch.set_grad_enabled(False)
     svd = params.result_dir
     dataloaders = data_loader.fetch_dataloader(params)
-    with tqdm(total=len(dataloaders['train'])) as t:
-        for i, data_batch in enumerate(dataloaders['train']):
-            data_batch = utils.tensor_gpu(data_batch)
-            output, temp = model(data_batch)
-            output = compute_homo(data_batch, output)
-            output = second_stage(data_batch, output, temp)
+    with tqdm(total=len(dataloaders['test'])) as t:
+        for i, inputs in enumerate(dataloaders['test']):
+            inputs = utils.tensor_gpu(inputs)
+            output, temp = model(inputs)
+            output = compute_homo(inputs, output)
+            output = second_stage(inputs, output, temp)
             imgs = [output['img_ga_m'], output['img_a_m'], output['img_a_pred']]
             imgs = [to_cv2_format(i) for i in imgs]
-            compare = np.concatenate(imgs, axis=1)
+            draw_info = [cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2]
+            cv2.putText(imgs[1], 'inp', (290, 400), *draw_info)
+            cv2.putText(imgs[0], 'gt', (290, 450), *draw_info)
+            cv2.putText(imgs[2], 'pred', (290, 500), *draw_info)
+            pad = np.full((880, 50, 3), 255, np.uint8)
+            versus = [imgs[0], pad, imgs[1], pad, imgs[2]]
+            compare = np.concatenate(versus, axis=1)
             cv2.imwrite(f'{svd}/{i}_compare.jpg', compare)
             imgs = [to_rgb(i) for i in imgs]
             imageio.mimsave(f'{svd}/{i}_m_pd.gif', [imgs[1], imgs[2]], duration=0.5)
             imageio.mimsave(f'{svd}/{i}_gm_m.gif', [imgs[0], imgs[1]], duration=0.5)
             imageio.mimsave(f'{svd}/{i}_gm_pd.gif', [imgs[0], imgs[2]], duration=0.5)
+
+            avm_inp_path = os.path.join(
+                params.test_data_dir, inputs['input_avm_path'][0]
+            )
+            token = avm_inp_path.split('_p')
+            avm_gt_path = token[0] + '_p' + token[1] + '_p0' + token[2][1:]
+            shutil.copy2(avm_inp_path, f'{svd}/{i}_avm_inp.jpg')
+            shutil.copy2(avm_gt_path, f'{svd}/{i}_avm_gt.jpg')
 
             t.set_description(desc='')
             t.update()

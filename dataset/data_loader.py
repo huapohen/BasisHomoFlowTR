@@ -57,7 +57,7 @@ def fetch_dataloader(params):
 
     # chose test data loader for evaluate
 
-    if params.eval_type == "test":
+    if params.eval_type in ["test", 'valid']:
         dl = DataLoader(
             test_ds,
             batch_size=params.eval_batch_size,

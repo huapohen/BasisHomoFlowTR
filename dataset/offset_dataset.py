@@ -58,6 +58,8 @@ class OffsetDataset(torch.utils.data.Dataset):
                 if i == 0:
                     pt = np.array(pts[k[0]], dtype=np.float32).reshape(4, 2)
                     data_dict[f'points_{k[0]}'] = torch.from_numpy(pt)
+                    
+        data_dict['input_avm_path'] = self.data_list[idx]
 
         return data_dict
 
