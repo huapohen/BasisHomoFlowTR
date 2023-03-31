@@ -27,6 +27,7 @@ def inference(model, params):
     with tqdm(total=len(dataloaders['test'])) as t:
         for i, inputs in enumerate(dataloaders['test']):
             inputs = utils.tensor_gpu(inputs)
+            inp_path = inputs['input_avm_path'][0]
             output, temp = model(inputs)
             output = compute_homo(inputs, output)
             output = second_stage(inputs, output, temp)
@@ -39,19 +40,19 @@ def inference(model, params):
             pad = np.full((880, 50, 3), 255, np.uint8)
             versus = [imgs[0], pad, imgs[1], pad, imgs[2]]
             compare = np.concatenate(versus, axis=1)
-            cv2.imwrite(f'{svd}/{i}_compare.jpg', compare)
+            suff = inp_path.split(os.sep)[-1].split('.')[0]
+            cv2.imwrite(f'{svd}/{i}_compare__{suff}.jpg', compare)
             imgs = [to_rgb(i) for i in imgs]
-            imageio.mimsave(f'{svd}/{i}_m_pd.gif', [imgs[1], imgs[2]], duration=0.5)
-            imageio.mimsave(f'{svd}/{i}_gm_m.gif', [imgs[0], imgs[1]], duration=0.5)
-            imageio.mimsave(f'{svd}/{i}_gm_pd.gif', [imgs[0], imgs[2]], duration=0.5)
+            i12, i01, i02 = [imgs[1], imgs[2]], [imgs[0], imgs[1]], [imgs[0], imgs[2]]
+            imageio.mimsave(f'{svd}/{i}_m_pd__{suff}.gif', i12, duration=0.5)
+            imageio.mimsave(f'{svd}/{i}_gm_m__{suff}.gif', i01, duration=0.5)
+            imageio.mimsave(f'{svd}/{i}_gm_pd__{suff}.gif', i02, duration=0.5)
 
-            avm_inp_path = os.path.join(
-                params.test_data_dir, inputs['input_avm_path'][0]
-            )
+            avm_inp_path = os.path.join(params.test_data_dir, inp_path)
             token = avm_inp_path.split('_p')
             avm_gt_path = token[0] + '_p' + token[1] + '_p0' + token[2][1:]
-            shutil.copy2(avm_inp_path, f'{svd}/{i}_avm_inp.jpg')
-            shutil.copy2(avm_gt_path, f'{svd}/{i}_avm_gt.jpg')
+            shutil.copy2(avm_inp_path, f'{svd}/{i}_avm_inp__{suff}.jpg')
+            shutil.copy2(avm_gt_path, f'{svd}/{i}_avm_gt__{suff}.jpg')
 
             t.set_description(desc='')
             t.update()
