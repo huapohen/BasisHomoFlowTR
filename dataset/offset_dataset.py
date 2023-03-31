@@ -24,6 +24,7 @@ class OffsetDataset(torch.utils.data.Dataset):
                 for line in f.readlines():
                     if 'avm' in line and 'p0' not in line:
                         self.data_list.append(line.strip('\n'))
+        self.data_list = sorted(self.data_list)
         self.data_dir = text_dir
         if mode == 'train':
             random.shuffle(self.data_list)
@@ -58,7 +59,7 @@ class OffsetDataset(torch.utils.data.Dataset):
                 if i == 0:
                     pt = np.array(pts[k[0]], dtype=np.float32).reshape(4, 2)
                     data_dict[f'points_{k[0]}'] = torch.from_numpy(pt)
-                    
+
         data_dict['input_avm_path'] = self.data_list[idx]
 
         return data_dict
