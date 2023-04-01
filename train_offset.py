@@ -82,7 +82,7 @@ def train(model, manager):
             t.set_description(desc=print_str)
             t.update()
 
-            break
+            # break
 
     manager.logger.info(print_str)
     manager.scheduler.step()

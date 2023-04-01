@@ -170,7 +170,7 @@ def compute_homo(input, output):
 def second_stage(input, output, mask_dict):
     bs, _, h, w = input['img_ga'].shape
     bhw = (bs, h, w)
-    img_wm_pred, ones_mask_w = [], []
+    img_wm_pred, ones_mask_w, img_um = [], [], []
     for k in ['f', 'b', 'l', 'r']:
         img = input[f'img_{k}']
         zeros = img == img.new_zeros(1)
@@ -184,12 +184,14 @@ def second_stage(input, output, mask_dict):
         mask_w[mask_w < 0] = img.new_zeros(1)
         img_w = mask_dict[f'fusion_mask_{k}'] * img_w
         mask_w = mask_dict[f'fusion_mask_{k}'] * mask_w
+        img_u = mask_dict[f'fusion_mask_{k}'] * img_unnorm
         img_wm_pred.append(img_w)
         ones_mask_w.append(mask_w)
+        img_um.append(img_u)
         # output[f'ones_mask_w_{k}'] = mask_w
         del output[f'homo_{k}']
-    avms = ['img_a_pred', 'ones_mask_w_avm']
-    bevs = [img_wm_pred, ones_mask_w]
+    avms = ['img_a_pred', 'ones_mask_w_avm', 'img_a_m']
+    bevs = [img_wm_pred, ones_mask_w, img_um]
     for avm, bev in zip(avms, bevs):
         output[avm] = bev[0] + bev[1] + bev[2] + bev[3]
     output[avms[-1]][:, :, 244 : 880 - 244, 221 : 616 - 221] = 0
@@ -201,7 +203,7 @@ def second_stage(input, output, mask_dict):
         ones_mask_w_avm_sum_ratio.append(sum_ratio.unsqueeze(0))
     output['ones_mask_w_avm_sum_ratio'] = torch.cat(ones_mask_w_avm_sum_ratio, dim=0)
     output['img_ga_m'] = input['img_ga'] * output['ones_mask_w_avm']
-    output['img_a_m'] = input['img_a'] * output['ones_mask_w_avm']
+    output['img_a_m'] = output['img_a_m'] * output['ones_mask_w_avm']
 
     return output
 
