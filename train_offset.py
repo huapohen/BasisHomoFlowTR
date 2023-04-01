@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 import dataset.data_loader as data_loader
 import model.net as net
-import model.offset_net as offset_net
+import model.offset_net_v1 as offset_net_v1
 
 from common import utils
 from common.manager import Manager
@@ -59,8 +59,8 @@ def train(model, manager):
 
             # compute model output and loss
             output, temp = model(data_batch)
-            output = offset_net.compute_homo(data_batch, output)
-            output = offset_net.second_stage(data_batch, output, temp)
+            output = offset_net_v1.compute_homo(data_batch, output)
+            output = offset_net_v1.second_stage(data_batch, output, temp)
             del temp
 
             loss = compute_losses(output, data_batch, manager.params)

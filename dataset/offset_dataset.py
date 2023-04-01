@@ -47,7 +47,7 @@ class OffsetDataset(torch.utils.data.Dataset):
         data_dict = {}
 
         for i in range(2):
-            for k in ['front', 'back', 'left', 'right']:
+            for k in ['front', 'back', 'left', 'right', 'avm']:
                 pref = prefix[:-1] + '0' if i == 0 else prefix
                 img = cv2.imread(os.path.join(self.data_dir, pref + f'_{k}.jpg'))
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
@@ -56,7 +56,7 @@ class OffsetDataset(torch.utils.data.Dataset):
                 img = torch.from_numpy(img.astype(np.float32))
                 gt = 'g' if i == 0 else ''
                 data_dict[f'img_{gt}{k[0]}'] = img
-                if i == 0:
+                if i == 0 and k != 'avm':
                     pt = np.array(pts[k[0]], dtype=np.float32).reshape(4, 2)
                     data_dict[f'points_{k[0]}'] = torch.from_numpy(pt)
 

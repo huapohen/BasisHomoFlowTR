@@ -2,7 +2,7 @@ from .basenet import Net
 from .osnet import OSNet
 from .swin_multi import SwinTransformer
 from .pix2pixSTN import Pix2PixSTN
-from .offset_net import OffsetNet
+from .offset_net_v1 import OffsetNet
 
 
 def fetch_net(params):

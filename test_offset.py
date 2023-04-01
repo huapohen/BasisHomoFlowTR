@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from common import utils
 import model.net as net
-from model.offset_net import *
+from model.offset_net_v1 import *
 import dataset.data_loader as data_loader
 
 
@@ -37,7 +37,7 @@ def inference(model, params):
             cv2.putText(imgs[1], 'inp', (280, 400), *draw_info)
             cv2.putText(imgs[0], 'gt', (280, 450), *draw_info)
             cv2.putText(imgs[2], 'pred', (280, 500), *draw_info)
-            pad = np.full((880, 50, 3), 255, np.uint8)
+            pad = np.full((880, 50, 3), 30, np.uint8)
             versus = [imgs[0], pad, imgs[1], pad, imgs[2]]
             compare = np.concatenate(versus, axis=1)
             suff = inp_path.split(os.sep)[-1].split('.')[0]
