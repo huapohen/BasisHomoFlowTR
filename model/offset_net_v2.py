@@ -93,6 +93,7 @@ class OffsetNet(nn.Module):
         if self.params.is_test_pipeline:
             offsets = x.new_ones(x.shape[0], 8 * 4, 1) * 30
         else:
+            # offsets = x.new_ones(x.shape[0], 8 * 4, 1) * 0
             offsets = self.nets_forward(x)
         output = {}
         for i, k in enumerate(['f', 'b', 'l', 'r']):
