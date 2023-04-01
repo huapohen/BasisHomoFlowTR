@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from common import utils
 import model.net as net
-from model.offset_net_v1 import *
+from model.offset_net_v2 import *
 import dataset.data_loader as data_loader
 
 
@@ -28,9 +28,10 @@ def inference(model, params):
         for i, inputs in enumerate(dataloaders['test']):
             inputs = utils.tensor_gpu(inputs)
             inp_path = inputs['input_avm_path'][0]
-            output, temp = model(inputs)
+            output = model(inputs)
+            mask_dict = mask_to_device(inputs)
             output = compute_homo(inputs, output)
-            output = second_stage(inputs, output, temp)
+            output = second_stage(inputs, output, mask_dict)
             imgs = [output['img_ga_m'], output['img_a_m'], output['img_a_pred']]
             imgs = [to_cv2_format(i) for i in imgs]
             draw_info = [cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2]
@@ -44,15 +45,15 @@ def inference(model, params):
             cv2.imwrite(f'{svd}/{i}_compare__{suff}.jpg', compare)
             imgs = [to_rgb(i) for i in imgs]
             i12, i01, i02 = [imgs[1], imgs[2]], [imgs[0], imgs[1]], [imgs[0], imgs[2]]
-            imageio.mimsave(f'{svd}/{i}_m_pd__{suff}.gif', i12, duration=0.5)
-            imageio.mimsave(f'{svd}/{i}_gm_m__{suff}.gif', i01, duration=0.5)
-            imageio.mimsave(f'{svd}/{i}_gm_pd__{suff}.gif', i02, duration=0.5)
-
+            imageio.mimsave(f'{svd}/{i}_m_pd.gif', i12, duration=0.5)
+            imageio.mimsave(f'{svd}/{i}_gm_m.gif', i01, duration=0.5)
+            imageio.mimsave(f'{svd}/{i}_gm_pd.gif', i02, duration=0.5)
             avm_inp_path = os.path.join(params.test_data_dir, inp_path)
             token = avm_inp_path.split('_p')
             avm_gt_path = token[0] + '_p' + token[1] + '_p0' + token[2][1:]
-            shutil.copy2(avm_inp_path, f'{svd}/{i}_avm_inp__{suff}.jpg')
-            shutil.copy2(avm_gt_path, f'{svd}/{i}_avm_gt__{suff}.jpg')
+            shutil.copy2(avm_inp_path, f'{svd}/{i}_avm_inp.jpg')
+            shutil.copy2(avm_gt_path, f'{svd}/{i}_avm_gt.jpg')
+            to_save_mask(f'{svd}/{i}_avm_mask.jpg', output['ones_mask_w_avm'])
 
             t.set_description(desc='')
             t.update()

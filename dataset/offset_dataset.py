@@ -51,8 +51,10 @@ class OffsetDataset(torch.utils.data.Dataset):
                 pref = prefix[:-1] + '0' if i == 0 else prefix
                 img = cv2.imread(os.path.join(self.data_dir, pref + f'_{k}.jpg'))
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
-                img = (img / 255.0 - 0.5) * 2
-                img[img == -0.5] = 0
+                if k != 'avm':
+                    zeros = img == 0
+                    img = (img / 255.0 - 0.5) * 2
+                    img[zeros] = 0
                 img = torch.from_numpy(img.astype(np.float32))
                 gt = 'g' if i == 0 else ''
                 data_dict[f'img_{gt}{k[0]}'] = img

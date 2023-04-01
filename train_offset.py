@@ -12,12 +12,13 @@ from tqdm import tqdm
 
 import dataset.data_loader as data_loader
 import model.net as net
-import model.offset_net_v1 as offset_net_v1
 
 from common import utils
 from common.manager import Manager
 from evaluate_offset import evaluate
+from test_offset import inference
 from loss.offset_losses import compute_losses
+from model.offset_net_v2 import *
 
 torch.backends.cuda.matmul.allow_tf32 = False
 
@@ -30,9 +31,7 @@ parser.add_argument(
 parser.add_argument(
     '--restore_file',
     default=None,
-    help="Optional, name of the file in --model_dir containing weights to reload before \
-                    training",
-)  #
+)
 parser.add_argument(
     '-ow',
     '--only_weights',
@@ -57,11 +56,10 @@ def train(model, manager):
             # move to GPU if available
             data_batch = utils.tensor_gpu(data_batch)
 
-            # compute model output and loss
-            output, temp = model(data_batch)
-            output = offset_net_v1.compute_homo(data_batch, output)
-            output = offset_net_v1.second_stage(data_batch, output, temp)
-            del temp
+            output = model(data_batch)
+            mask_dict = mask_to_device(data_batch)
+            output = compute_homo(data_batch, output)
+            output = second_stage(data_batch, output, mask_dict)
 
             loss = compute_losses(output, data_batch, manager.params)
 
@@ -74,7 +72,6 @@ def train(model, manager):
 
             # performs updates using calculated gradients
             manager.optimizer.step()
-            # manager.logger.info("Loss/train: step {}: {}".format(manager.step, manager.loss_status['total'].val))
 
             # update step: step += 1
             manager.update_step()
@@ -85,6 +82,9 @@ def train(model, manager):
             t.set_description(desc=print_str)
             t.update()
 
+            break
+
+    manager.logger.info(print_str)
     manager.scheduler.step()
 
     # update epoch: epoch += 1
@@ -115,9 +115,7 @@ if __name__ == '__main__':
     # Load the parameters from json file
     args = parser.parse_args()
     json_path = os.path.join(args.model_dir, 'params.json')
-    assert os.path.isfile(json_path), "No json configuration file found at {}".format(
-        json_path
-    )
+    assert os.path.isfile(json_path)
     params = utils.Params(json_path)
 
     # Update args into params
@@ -146,18 +144,14 @@ if __name__ == '__main__':
     # Define the model and optimizer
     if params.cuda:
         model = net.fetch_net(params).cuda()
-        optimizer = optimizer = optim.Adam(
-            model.parameters(), lr=params.learning_rate, betas=(0.5, 0.999)
-        )
+        optimizer = optimizer = optim.AdamW(model.parameters(), lr=params.learning_rate)
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
         gpu_num = len(params.gpu_used.split(","))
         device_ids = range(gpu_num)
         model = torch.nn.DataParallel(model, device_ids=device_ids)
     else:
         model = net.fetch_net(params)
-        optimizer = optimizer = optim.Adam(
-            model.parameters(), lr=params.learning_rate, betas=(0.5, 0.999)
-        )
+        optimizer = optimizer = optim.AdamW(model.parameters(), lr=params.learning_rate)
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=params.gamma)
 
     # initial status for checkpoint manager
