@@ -76,8 +76,9 @@ if __name__ == '__main__':
         model = model.cuda()
         model = torch.nn.DataParallel(model, device_ids=[0])
     restore_file = os.path.join(args.model_dir, args.restore_file)
-    state = torch.load(restore_file, map_location=torch.device('cpu'))
-    model.load_state_dict(state["state_dict"])
+    if os.path.exists(restore_file):
+        state = torch.load(restore_file, map_location=torch.device('cpu'))
+        model.load_state_dict(state["state_dict"])
     if os.path.exists(args.result_dir):
         shutil.rmtree(args.result_dir)
     os.makedirs(args.result_dir, exist_ok=True)
