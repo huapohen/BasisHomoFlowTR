@@ -36,10 +36,7 @@ class OffsetNet(nn.Module):
         self.layer2 = self._make_layer(self.block, 128, self.layers[1], stride=2)
         self.layer3 = self._make_layer(self.block, 256, self.layers[2], stride=2)
         self.layer4 = self._make_layer(self.block, 512, self.layers[3], stride=2)
-
-        self.conv_last = nn.Conv2d(
-            512, 8 * 4, kernel_size=1, stride=1, padding=0, groups=8, bias=False
-        )
+        self.conv_last = nn.Conv2d(512, 8 * 4, 1, groups=8, bias=False)
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -95,6 +92,11 @@ class OffsetNet(nn.Module):
         else:
             # offsets = x.new_ones(x.shape[0], 8 * 4, 1) * 0
             offsets = self.nets_forward(x)
+            
+        offsets = offsets.tanh()
+        offsets[:, ::2] = offsets[:, ::2] * 10  # x
+        offsets[:, 1::2] = offsets[:, 1::2] * 10  # y
+
         output = {}
         for i, k in enumerate(['f', 'b', 'l', 'r']):
             j = 8 * i
