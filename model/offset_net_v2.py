@@ -92,10 +92,8 @@ class OffsetNet(nn.Module):
         else:
             # offsets = x.new_ones(x.shape[0], 8 * 4, 1) * 0
             offsets = self.nets_forward(x)
-            
-        offsets = offsets.tanh()
-        offsets[:, ::2] = offsets[:, ::2] * 10  # x
-        offsets[:, 1::2] = offsets[:, 1::2] * 10  # y
+
+        offsets = offsets.tanh() * 10
 
         output = {}
         for i, k in enumerate(['f', 'b', 'l', 'r']):
