@@ -28,6 +28,8 @@ class OffsetDataset(torch.utils.data.Dataset):
         self.data_dir = text_dir
         if mode == 'train':
             random.shuffle(self.data_list)
+        self.mean_I = np.array([118.93, 113.97, 102.60]).reshape(1, 1, 3)
+        self.std_I = np.array([69.85, 68.81, 72.45]).reshape(1, 1, 3)
 
     def __len__(self):
         return len(self.data_list)
@@ -46,21 +48,26 @@ class OffsetDataset(torch.utils.data.Dataset):
 
         data_dict = {}
 
-        for i in range(2):
+        for mode in ['gt', 'inp']:
             for k in ['front', 'back', 'left', 'right', 'avm']:
-                pref = prefix[:-1] + '0' if i == 0 else prefix
+                pref = prefix[:-1] + '0' if mode == 'gt' else prefix
                 img = cv2.imread(os.path.join(self.data_dir, pref + f'_{k}.jpg'))
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
+                if mode == 'gt' and k != 'avm':
+                    unnorm = torch.from_numpy(img).permute(2, 0, 1).float()
+                    data_dict[f'img_u{k[0]}'] = unnorm
                 if k != 'avm':
                     zeros = img == 0
-                    img = (img / 255.0 - 0.5) * 2
+                    img = (img - self.mean_I) / self.std_I
                     img[zeros] = 0
-                img = torch.from_numpy(img.astype(np.float32))
-                gt = 'g' if i == 0 else ''
-                data_dict[f'img_{gt}{k[0]}'] = img
-                if i == 0 and k != 'avm':
-                    pt = np.array(pts[k[0]], dtype=np.float32).reshape(4, 2)
-                    data_dict[f'points_{k[0]}'] = torch.from_numpy(pt)
+                img = torch.from_numpy(img).permute(2, 0, 1).float()
+                if mode == 'inp':
+                    data_dict[f'img_{k[0]}'] = img
+                else:  # gt
+                    if k == 'avm':
+                        data_dict[f'img_ga'] = img
+                    else:
+                        pt = np.array(pts[k[0]]).reshape(4, 2)
+                        data_dict[f'points_{k[0]}'] = torch.from_numpy(pt).float()
 
         data_dict['input_avm_path'] = self.data_list[idx]
 

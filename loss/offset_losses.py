@@ -70,9 +70,10 @@ def triplet_loss(a, p, n, margin=1.0, exp=1, reduce=False, size_average=False):
 
 def photo_loss_function(output, q, averge=True, ones_mask=False):
     diff = output['img_a_pred'] - output['img_ga_m']
-    half = torch.ones_like(output['img_a_pred']) * 0.5
-    diff = (diff / 255 - half) * 2
-    diff = diff * output['ones_mask_w_avm']
+    mean_I = torch.tensor([118.93, 113.97, 102.60]).reshape(1, 1, 1, 3).to(diff)
+    std_I = torch.tensor([69.85, 68.81, 72.45]).reshape(1, 1, 1, 3).to(diff)
+    diff = (diff.permute(0, 2, 3, 1) - mean_I) / std_I
+    diff = diff.mean(dim=3)
     diff = (torch.abs(diff) + 0.01).pow(q)
     if ones_mask:
         for i in range(diff.shape[0]):

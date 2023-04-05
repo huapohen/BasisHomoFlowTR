@@ -173,16 +173,13 @@ def second_stage(input, output, mask_dict):
     bhw = (bs, h, w)
     img_wm_pred, ones_mask_w, img_um = [], [], []
     for k in ['f', 'b', 'l', 'r']:
-        img = input[f'img_{k}']
-        zeros = img == img.new_zeros(1)
-        img_unnorm = (input[f'img_{k}'] / 2 + mask_dict['half_mask']) * 255
-        img_unnorm[zeros] = img.new_zeros(1)
+        img_unnorm = input[f'img_u{k}']
         inp1 = [output[f'homo_{k}'], img_unnorm, *bhw]
         inp2 = [output[f'homo_{k}'], mask_dict[f'ones_mask_{k}'] * 255, *bhw]
         img_w = warp_image_from_H(*inp1)
         mask_w = warp_image_from_H(*inp2)
-        mask_w[mask_w > 0] = img.new_ones(1)
-        mask_w[mask_w < 0] = img.new_zeros(1)
+        mask_w[mask_w > 0] = img_w.new_ones(1)
+        mask_w[mask_w < 0] = img_w.new_zeros(1)
         img_w = mask_dict[f'fusion_mask_{k}'] * img_w
         mask_w = mask_dict[f'fusion_mask_{k}'] * mask_w
         img_u = mask_dict[f'fusion_mask_{k}'] * img_unnorm
@@ -191,11 +188,11 @@ def second_stage(input, output, mask_dict):
         img_um.append(img_u)
         # output[f'ones_mask_w_{k}'] = mask_w
         del output[f'homo_{k}']
-    avms = ['img_a_pred', 'ones_mask_w_avm', 'img_a_m']
-    bevs = [img_wm_pred, ones_mask_w, img_um]
+    avms = ['img_a_pred', 'img_a', 'ones_mask_w_avm']
+    bevs = [img_wm_pred, img_um, ones_mask_w]
     for avm, bev in zip(avms, bevs):
         output[avm] = bev[0] + bev[1] + bev[2] + bev[3]
-    output[avms[-1]][:, :, 244 : 880 - 244, 221 : 616 - 221] = 0
+    # output[avms[-1]][:, :, 244 : 880 - 244, 221 : 616 - 221] = 0
     ones_mask_w_avm_sum_ratio = []
     ori_sum = 880 * 616
     for i in range(bs):
@@ -204,7 +201,7 @@ def second_stage(input, output, mask_dict):
         ones_mask_w_avm_sum_ratio.append(sum_ratio.unsqueeze(0))
     output['ones_mask_w_avm_sum_ratio'] = torch.cat(ones_mask_w_avm_sum_ratio, dim=0)
     output['img_ga_m'] = input['img_ga'] * output['ones_mask_w_avm']
-    output['img_a_m'] = output['img_a_m'] * output['ones_mask_w_avm']
+    output['img_a_m'] = output['img_a'] * output['ones_mask_w_avm']
 
     return output
 
@@ -213,15 +210,16 @@ def to_save_mask(svp, imgs, i=0):
     img = imgs[i].detach().cpu()
     img *= 255
     img = img.numpy().transpose((1, 2, 0))
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    img = np.ascontiguousarray(img)
     cv2.imwrite(svp, img)
 
 
 def to_cv2_format(imgs, i=0):
     img = imgs[i].detach().cpu()
-    img = torch.clamp(img, 0, 255)
     img = img.numpy().astype(np.uint8).transpose((1, 2, 0))
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    img = np.ascontiguousarray(img)
     return img
 
 
@@ -787,17 +785,19 @@ if __name__ == '__main__':
     model.cuda()
 
     base_path = '/home/data/lwb/code/baseshomo/dataset/test'
+    mean_I = np.array([118.93, 113.97, 102.60]).reshape(1, 1, 3)
+    std_I = np.array([69.85, 68.81, 72.45]).reshape(1, 1, 3)
 
     inputs = {}
     for i, vid in enumerate(['20230302160555', '20230227114457']):
         for k in ['front', 'back', 'left', 'right', 'avm']:
             img = cv2.imread(f'{base_path}/{vid}_162_{k}.jpg')
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
+            # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             if k != 'avm':
                 zeros = img == 0
-                img = (img / 255.0 - 0.5) * 2
+                img = (img - mean_I) / std_I
                 img[zeros] = 0
-            img = torch.from_numpy(img[np.newaxis].astype(np.float32))
+            img = torch.from_numpy(img).permute(2, 0, 1).float().unsqueeze(0)
             img = img.cuda()
             gt = 'g' if i == 0 else ''
             inputs[f'img_{gt}{k[0]}'] = img
